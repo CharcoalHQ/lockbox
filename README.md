@@ -89,7 +89,7 @@ import prodConfig from './config/production/generated.js';
 export const { config, environment } = await createConfig<Config>({
   configs: { test: testConfig, production: prodConfig },
   environment: process.env.NODE_ENV ?? 'test',
-  privateKey: process.env.CONFIG_SECRETS_PRIVATE_KEY,
+  privateKey: process.env.MY_PRIVATE_KEY,
 });
 ```
 
@@ -134,7 +134,7 @@ Later values override earlier ones. Objects are merged recursively; all other va
 
 Secrets use **libsodium sealed boxes**:
 - Anyone with the **public key** (committed to repo) can encrypt new secrets
-- Only the **private key** holder can decrypt (set `CONFIG_SECRETS_PRIVATE_KEY` env var)
+- Only the **private key** holder can decrypt
 - Format: `ENC[base64_ciphertext]`
 
 Add secrets as plaintext to `secret.json` and run `lockbox generate` — they'll be encrypted automatically.
