@@ -11,15 +11,16 @@ Commands:
   init        Scaffold a new config directory and generate a keypair
   generate    Encrypt secrets and generate TypeScript config files
   validate    Check that secrets are encrypted and generated files are up-to-date
-  keygen      Generate a new encryption keypair
-  view        View the decrypted config for an environment
-  set         Set a plaintext config value (clear.json or default.json)
-  set-secret  Set a secret config value (secret.json, encrypted on generate)
+  keygen          Generate a new encryption keypair
+  set-private-key Store a private key locally in .lockbox/private-key
+  view            View the decrypted config for an environment
+  set             Set a plaintext config value (clear.json or default.json)
+  set-secret      Set a secret config value (secret.json, encrypted on generate)
 
 Options:
   --dir <path>     Config directory (overrides lockbox.json)
   --envs <list>    Comma-separated environments (init only)
-  --env <name>     Target environment (view, set, set-secret)
+  --env <name>     Target environment (required for view, set-secret)
   --help           Show this help message
   --version        Show version
 `;
@@ -79,6 +80,17 @@ async function main(): Promise<void> {
     case 'keygen': {
       const { runKeygen } = await import('./keygen.js');
       runKeygen();
+      break;
+    }
+    case 'set-private-key': {
+      const keyVal = positionals[1];
+      if (!keyVal) {
+        console.error('Usage: lockbox set-private-key <base64-key>');
+        process.exit(1);
+      }
+      const { savePrivateKey } = await import('./credentials.js');
+      const keyPath = savePrivateKey(keyVal);
+      console.log(`Private key saved to ${keyPath}`);
       break;
     }
     case 'view': {

@@ -228,12 +228,20 @@ Generate a new encryption keypair.
 lockbox keygen
 ```
 
-### `lockbox view`
+### `lockbox set-private-key`
 
-View the full decrypted config for an environment.
+Store a private key locally for CLI operations (saved to `.lockbox/private-key` with `600` permissions, auto-added to `.gitignore`).
 
 ```bash
-CONFIG_SECRETS_PRIVATE_KEY=... lockbox view --env production
+lockbox set-private-key <base64-key>
+```
+
+### `lockbox view`
+
+View the full decrypted config for an environment. Requires `--env`. Reads the private key from `.lockbox/private-key`.
+
+```bash
+lockbox view --env production
 ```
 
 ## Configuration

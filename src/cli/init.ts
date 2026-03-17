@@ -1,6 +1,7 @@
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { generateKeyPair } from '../crypto.js';
+import { savePrivateKey } from './credentials.js';
 
 const HOOK_COMMAND = 'npx lockbox validate';
 const HOOK_MARKER = '# lockbox:validate';
@@ -68,15 +69,18 @@ export function runInit(dir: string, envs: string[]): void {
   console.log(`  default.json`);
   console.log(`  lockbox.pub`);
 
+  // Save private key to .lockbox/private-key
+  const keyPath = savePrivateKey(privateKey.toString('base64'));
+
   console.log('\n' + '='.repeat(64));
-  console.log('  IMPORTANT: Save your private key securely!');
+  console.log('  Private key saved to .lockbox/private-key');
   console.log('='.repeat(64));
-  console.log(`\n  Private key: ${privateKey.toString('base64')}`);
-  console.log(`\n  Set it as an environment variable:`);
-  console.log(`  CONFIG_SECRETS_PRIVATE_KEY=${privateKey.toString('base64')}`);
-  console.log(`\n  This key is required to decrypt secrets in non-test`);
-  console.log(`  environments. Store it securely (e.g., in a secrets manager).`);
-  console.log(`  It will NOT be shown again.`);
+  console.log(`\n  Stored at: ${keyPath}`);
+  console.log(`  Permissions: 600 (owner read/write only)`);
+  console.log(`  .lockbox/ has been added to .gitignore`);
+  console.log(`\n  For production, add it as the sole secret in your .env file`);
+  console.log(`  or store it in your secrets manager:`);
+  console.log(`  ${privateKey.toString('base64')}`);
   console.log('='.repeat(64));
 
   console.log('\nNext steps:');

@@ -1,5 +1,6 @@
 import { decryptObject, isEncrypted, loadKeyPair } from '../crypto.js';
 import { resolveConfig } from './config.js';
+import { loadPrivateKey } from './credentials.js';
 import { discoverEnvironments, loadDefaults, loadEnvConfig, mergeConfigs } from './utils.js';
 
 export function runView(dirOverride?: string, envOverride?: string): void {
@@ -11,26 +12,31 @@ export function runView(dirOverride?: string, envOverride?: string): void {
     process.exit(1);
   }
 
-  const env = envOverride ?? process.env.NODE_ENV ?? environments[0];
-  if (!environments.includes(env)) {
+  if (!envOverride) {
     console.error(
-      `Unknown environment "${env}". Available: ${environments.join(', ')}`
+      `--env is required. Available environments: ${environments.join(', ')}`
+    );
+    process.exit(1);
+  }
+
+  if (!environments.includes(envOverride)) {
+    console.error(
+      `Unknown environment "${envOverride}". Available: ${environments.join(', ')}`
     );
     process.exit(1);
   }
 
   const defaults = loadDefaults(configDir);
-  const envConfig = loadEnvConfig(configDir, env);
+  const envConfig = loadEnvConfig(configDir, envOverride);
   let merged = mergeConfigs(defaults, envConfig.clear, envConfig.secret);
 
-  const privateKey = process.env.CONFIG_SECRETS_PRIVATE_KEY;
+  const privateKey = loadPrivateKey();
   if (privateKey) {
     merged = decryptObject(merged, loadKeyPair(privateKey));
   } else if (hasEncryptedValues(merged)) {
     console.error(
-      'ERROR: Config contains encrypted secrets but CONFIG_SECRETS_PRIVATE_KEY is not set.\n' +
-      'Set it in your environment to decrypt:\n\n' +
-      '  CONFIG_SECRETS_PRIVATE_KEY=<your-key> lockbox view --env ' + env
+      'ERROR: Config contains encrypted secrets but no private key is configured.\n' +
+      'Run `lockbox set-private-key <key>` to store your private key.'
     );
     process.exit(1);
   }
