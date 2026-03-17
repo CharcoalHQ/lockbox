@@ -1,5 +1,5 @@
 {
-  "name": "lockbox",
+  "name": "@charcoal/lockbox",
   "version": "0.1.0",
   "description": "Typed configuration with encrypted secrets. JSON-based, per-environment overrides, libsodium sealed-box encryption, TypeScript codegen, and validation hooks.",
   "type": "module",
@@ -32,6 +32,13 @@
     "environment"
   ],
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/CharcoalHQ/lockbox.git"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "engines": {
     "node": ">=18.3.0"
   },

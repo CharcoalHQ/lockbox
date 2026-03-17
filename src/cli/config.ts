@@ -6,7 +6,7 @@ const CONFIG_FILENAME = 'lockbox.json';
 
 const DEFAULTS: LockboxConfig = {
   dir: './config',
-  importSource: 'lockbox',
+  importSource: '@charcoal/lockbox',
   skipRequiredFieldValidation: [],
 };
 

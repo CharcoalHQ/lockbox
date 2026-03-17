@@ -14,7 +14,7 @@ Define your config in JSON. Secrets get encrypted automatically. Everything is m
 ### 1. Install
 
 ```bash
-pnpm add lockbox
+pnpm add @charcoal/lockbox
 ```
 
 ### 2. Initialize
@@ -81,7 +81,7 @@ Then run `npx lockbox generate` to encrypt secrets and generate TypeScript files
 ### 5. Use in your app
 
 ```typescript
-import { createConfig } from 'lockbox';
+import { createConfig } from '@charcoal/lockbox';
 import type { Config } from './config/schema.js';
 import testConfig from './config/test/generated.js';
 import prodConfig from './config/production/generated.js';
@@ -253,7 +253,7 @@ Created by `lockbox init` in your project root:
 ```json
 {
   "dir": "./src/config",
-  "importSource": "lockbox",
+  "importSource": "@charcoal/lockbox",
   "skipRequiredFieldValidation": ["test"]
 }
 ```
@@ -261,7 +261,7 @@ Created by `lockbox init` in your project root:
 | Field | Default | Description |
 |---|---|---|
 | `dir` | `./config` | Path to the environments directory |
-| `importSource` | `lockbox` | Package name used in generated `import` statements |
+| `importSource` | `@charcoal/lockbox` | Package name used in generated `import` statements |
 | `skipRequiredFieldValidation` | `[]` | Environments that skip required field checks |
 
 ### `createConfig` options
@@ -275,8 +275,8 @@ Created by `lockbox init` in your project root:
 ## API
 
 ```typescript
-import { createConfig, deepFreeze } from 'lockbox';
-import type { CreateConfigOptions, CreateConfigResult, LockboxConfig } from 'lockbox';
+import { createConfig, deepFreeze } from '@charcoal/lockbox';
+import type { CreateConfigOptions, CreateConfigResult, LockboxConfig } from '@charcoal/lockbox';
 ```
 
 - `createConfig<T>(options)` — load and decrypt config for the current environment
