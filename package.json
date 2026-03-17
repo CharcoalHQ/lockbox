@@ -1,0 +1,56 @@
+{
+  "name": "@charcoalhq/lockbox",
+  "version": "0.1.0",
+  "description": "Typed configuration with encrypted secrets. JSON-based, per-environment overrides, libsodium sealed-box encryption, TypeScript codegen, and validation hooks.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "bin": {
+    "lockbox": "./dist/cli/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "tsc"
+  },
+  "keywords": [
+    "config",
+    "configuration",
+    "secrets",
+    "encryption",
+    "typescript",
+    "codegen",
+    "environment"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/CharcoalHQ/lockbox.git"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=18.3.0"
+  },
+  "dependencies": {
+    "diff": "^7.0.0",
+    "sodium-native": "^4.3.1"
+  },
+  "devDependencies": {
+    "@types/diff": "^6.0.0",
+    "@types/node": "^22.0.0",
+    "@types/sodium-native": "^2.3.9",
+    "typescript": "^5.7.0",
+    "vitest": "^3.1.0"
+  }
+}
