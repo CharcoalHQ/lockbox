@@ -1,4 +1,4 @@
-import { decryptObject, loadKeyPair } from '../crypto.js';
+import { decryptObject, isEncrypted, loadKeyPair } from '../crypto.js';
 import { resolveConfig } from './config.js';
 import { discoverEnvironments, loadDefaults, loadEnvConfig, mergeConfigs } from './utils.js';
 
@@ -26,7 +26,23 @@ export function runView(dirOverride?: string, envOverride?: string): void {
   const privateKey = process.env.CONFIG_SECRETS_PRIVATE_KEY;
   if (privateKey) {
     merged = decryptObject(merged, loadKeyPair(privateKey));
+  } else if (hasEncryptedValues(merged)) {
+    console.error(
+      'ERROR: Config contains encrypted secrets but CONFIG_SECRETS_PRIVATE_KEY is not set.\n' +
+      'Set it in your environment to decrypt:\n\n' +
+      '  CONFIG_SECRETS_PRIVATE_KEY=<your-key> lockbox view --env ' + env
+    );
+    process.exit(1);
   }
 
   console.log(JSON.stringify(merged, null, 2));
+}
+
+function hasEncryptedValues(obj: unknown): boolean {
+  if (isEncrypted(obj)) return true;
+  if (Array.isArray(obj)) return obj.some(hasEncryptedValues);
+  if (obj !== null && typeof obj === 'object') {
+    return Object.values(obj).some(hasEncryptedValues);
+  }
+  return false;
 }
