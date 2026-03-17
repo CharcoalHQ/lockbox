@@ -86,9 +86,10 @@ import type { Config } from './config/schema.js';
 import testConfig from './config/test/generated.js';
 import prodConfig from './config/production/generated.js';
 
-export const { config, environment } = createConfig<Config>({
+export const { config, environment } = await createConfig<Config>({
   configs: { test: testConfig, production: prodConfig },
-  plaintextEnvironments: ['test'],
+  environment: process.env.NODE_ENV ?? 'test',
+  privateKey: process.env.CONFIG_SECRETS_PRIVATE_KEY,
 });
 ```
 
@@ -260,10 +261,8 @@ Created by `lockbox init` in your project root:
 | Option | Default | Description |
 |---|---|---|
 | `configs` | (required) | Map of environment name to imported config object |
-| `plaintextEnvironments` | `[]` | Environments where decryption is skipped |
-| `envVariable` | `'NODE_ENV'` | Environment variable that selects the active environment |
-| `defaultEnvironment` | first key in `configs` | Fallback when env variable is not set |
-| `privateKeyVariable` | `'CONFIG_SECRETS_PRIVATE_KEY'` | Environment variable containing the base64 private key |
+| `environment` | (required) | The active environment. Must be a key in `configs` |
+| `privateKey` | — | Base64 private key, or `() => string \| Promise<string>` resolver (e.g. from KMS). Required if config contains encrypted values |
 
 ## API
 

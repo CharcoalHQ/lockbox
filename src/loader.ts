@@ -1,55 +1,55 @@
-import { decryptObject, loadKeyPair } from './crypto.js';
+import { decryptObject, isEncrypted, loadKeyPair } from './crypto.js';
 import type { CreateConfigOptions, CreateConfigResult } from './types.js';
 
 /**
- * Load and optionally decrypt a config for the current environment.
+ * Load and optionally decrypt a config for the given environment.
  *
- * The environment is determined by reading `process.env[envVariable]`
- * (default: `NODE_ENV`). If the environment is listed in
- * `plaintextEnvironments`, decryption is skipped. Otherwise, the
- * private key is resolved from the `privateKey` option and used to
- * decrypt all `ENC[...]` values.
+ * If a `privateKey` is provided, all `ENC[...]` values are decrypted.
+ * If no key is provided and the config contains encrypted values, an
+ * error is thrown.
  */
-export async function createConfig<T extends object>(
-  options: CreateConfigOptions<T>
-): Promise<CreateConfigResult<T>> {
-  const {
-    configs,
-    plaintextEnvironments = [],
-    envVariable = 'NODE_ENV',
-  } = options;
+export async function createConfig<T extends object, E extends string>(
+  options: CreateConfigOptions<T, E>
+): Promise<CreateConfigResult<T, E>> {
+  const { configs, environment } = options;
 
   const validEnvironments = Object.keys(configs);
-  const defaultEnvironment = options.defaultEnvironment ?? validEnvironments[0];
 
   if (validEnvironments.length === 0) {
     throw new Error('lockbox: configs must contain at least one environment.');
   }
 
-  const env = process.env[envVariable] ?? defaultEnvironment;
-
-  if (!validEnvironments.includes(env)) {
+  if (!validEnvironments.includes(environment)) {
     throw new Error(
-      `lockbox: Invalid environment "${env}" (from ${envVariable}). Must be one of: ${validEnvironments.join(', ')}.`
+      `lockbox: Invalid environment "${environment}". Must be one of: ${validEnvironments.join(', ')}.`
     );
   }
 
-  const encryptedConfig = configs[env];
-
-  if (plaintextEnvironments.includes(env)) {
-    return { config: encryptedConfig, environment: env };
-  }
+  const rawConfig = configs[environment];
 
   const base64Key = typeof options.privateKey === 'function'
     ? await options.privateKey()
     : options.privateKey;
 
-  if (!base64Key) {
+  if (base64Key) {
+    const config = decryptObject(rawConfig, loadKeyPair(base64Key));
+    return { config, environment };
+  }
+
+  if (hasEncryptedValues(rawConfig)) {
     throw new Error(
-      `lockbox: No private key provided. Required to decrypt config for "${env}" environment.`
+      `lockbox: Config for "${environment}" contains encrypted values but no private key was provided.`
     );
   }
 
-  const config = decryptObject(encryptedConfig, loadKeyPair(base64Key));
-  return { config, environment: env };
+  return { config: rawConfig, environment };
+}
+
+function hasEncryptedValues(obj: unknown): boolean {
+  if (isEncrypted(obj)) return true;
+  if (Array.isArray(obj)) return obj.some(hasEncryptedValues);
+  if (obj !== null && typeof obj === 'object') {
+    return Object.values(obj).some(hasEncryptedValues);
+  }
+  return false;
 }

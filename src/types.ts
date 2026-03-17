@@ -3,22 +3,18 @@ export interface KeyPair {
   privateKey: Buffer;
 }
 
-export interface CreateConfigOptions<T> {
+export interface CreateConfigOptions<T, E extends string = string> {
   /** Map of environment name to pre-imported config object. */
-  configs: Record<string, T>;
-  /** Environments where secrets are not encrypted and decryption is skipped. */
-  plaintextEnvironments?: string[];
-  /** Environment variable name to read for the current environment. Default: 'NODE_ENV'. */
-  envVariable?: string;
-  /** Default environment when the env variable is not set. Default: first key in configs. */
-  defaultEnvironment?: string;
-  /** Base64-encoded private key, or an async resolver that returns one (e.g. from KMS). */
+  configs: Record<E, T>;
+  /** The active environment. Must be a key in `configs`. */
+  environment: E;
+  /** Base64-encoded private key, or an async resolver that returns one (e.g. from KMS). Required if config contains encrypted values. */
   privateKey?: string | (() => string | Promise<string>);
 }
 
-export interface CreateConfigResult<T> {
+export interface CreateConfigResult<T, E extends string = string> {
   config: Readonly<T>;
-  environment: string;
+  environment: E;
 }
 
 export interface LockboxConfig {
