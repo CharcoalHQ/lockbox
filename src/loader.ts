@@ -7,18 +7,16 @@ import type { CreateConfigOptions, CreateConfigResult } from './types.js';
  * The environment is determined by reading `process.env[envVariable]`
  * (default: `NODE_ENV`). If the environment is listed in
  * `plaintextEnvironments`, decryption is skipped. Otherwise, the
- * private key is read from `process.env[privateKeyVariable]`
- * (default: `CONFIG_SECRETS_PRIVATE_KEY`) and used to decrypt
- * all `ENC[...]` values.
+ * private key is resolved from the `privateKey` option and used to
+ * decrypt all `ENC[...]` values.
  */
-export function createConfig<T extends object>(
+export async function createConfig<T extends object>(
   options: CreateConfigOptions<T>
-): CreateConfigResult<T> {
+): Promise<CreateConfigResult<T>> {
   const {
     configs,
     plaintextEnvironments = [],
     envVariable = 'NODE_ENV',
-    privateKeyVariable = 'CONFIG_SECRETS_PRIVATE_KEY',
   } = options;
 
   const validEnvironments = Object.keys(configs);
@@ -42,13 +40,16 @@ export function createConfig<T extends object>(
     return { config: encryptedConfig, environment: env };
   }
 
-  const secretsPrivateKey = process.env[privateKeyVariable];
-  if (!secretsPrivateKey) {
+  const base64Key = typeof options.privateKey === 'function'
+    ? await options.privateKey()
+    : options.privateKey;
+
+  if (!base64Key) {
     throw new Error(
-      `lockbox: ${privateKeyVariable} is not set. Required to decrypt config for "${env}" environment.`
+      `lockbox: No private key provided. Required to decrypt config for "${env}" environment.`
     );
   }
 
-  const config = decryptObject(encryptedConfig, loadKeyPair(secretsPrivateKey));
+  const config = decryptObject(encryptedConfig, loadKeyPair(base64Key));
   return { config, environment: env };
 }

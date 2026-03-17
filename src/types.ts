@@ -12,8 +12,8 @@ export interface CreateConfigOptions<T> {
   envVariable?: string;
   /** Default environment when the env variable is not set. Default: first key in configs. */
   defaultEnvironment?: string;
-  /** Environment variable containing the base64-encoded private key. Default: 'CONFIG_SECRETS_PRIVATE_KEY'. */
-  privateKeyVariable?: string;
+  /** Base64-encoded private key, or an async resolver that returns one (e.g. from KMS). */
+  privateKey?: string | (() => string | Promise<string>);
 }
 
 export interface CreateConfigResult<T> {
