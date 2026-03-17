@@ -1,11 +1,13 @@
 # lockbox
 
-Typed configuration with encrypted secrets for Node.js/TypeScript applications.
+The last config and secrets manager your TypeScript app needs.
 
-- **Per-environment overrides** — base defaults merged with environment-specific clear and secret values
-- **Encrypted secrets** — libsodium sealed-box encryption (X25519 + XSalsa20-Poly1305). Public key committed to repo; private key stays in your secrets manager
-- **TypeScript codegen** — auto-generated frozen config objects and inferred schema types
-- **Validation hooks** — CLI to verify secrets are encrypted and generated files are fresh (plug into git hooks)
+Define your config in JSON. Secrets get encrypted automatically. Everything is merged per-environment, typed end-to-end, and validated on every commit. No more `.env` juggling, no more runtime surprises.
+
+- **Per-environment overrides** — base defaults deep-merged with environment-specific config and secrets
+- **Encrypted secrets** — libsodium sealed boxes. Public key lives in your repo, private key stays in your secrets manager
+- **Full type safety** — TypeScript types and frozen config objects are generated from your actual values
+- **Git hooks** — validates that secrets are encrypted and generated files are fresh before you push
 
 ## Quick start
 
@@ -24,6 +26,28 @@ npx lockbox init --dir ./src/config --envs test,production
 This creates the directory structure, generates a keypair, and prints your private key. **Save the private key securely** — it won't be shown again.
 
 ### 3. Add config values
+
+Use the CLI to set values — it writes the JSON and regenerates TypeScript files automatically:
+
+```bash
+# Set defaults (shared across all environments)
+npx lockbox set server.host 0.0.0.0
+npx lockbox set server.port 3000
+npx lockbox set db.host localhost
+npx lockbox set db.port 5432
+npx lockbox set db.password '**REQUIRED**'
+
+# Override per environment
+npx lockbox set db.host prod.db.example.com --env production
+
+# Set secrets (encrypted automatically)
+npx lockbox set-secret db.password hunter2 --env production
+```
+
+Or edit the JSON files directly if you prefer:
+
+<details>
+<summary>Manual JSON editing</summary>
 
 **`src/config/default.json`** — base values merged into every environment:
 
@@ -50,16 +74,9 @@ This creates the directory structure, generates a keypair, and prints your priva
 }
 ```
 
-### 4. Generate
+Then run `npx lockbox generate` to encrypt secrets and generate TypeScript files.
 
-```bash
-npx lockbox generate
-```
-
-This:
-- Encrypts any plaintext values in `secret.json` files
-- Generates a `generated.ts` per environment (merged + frozen config object)
-- Generates `schema.ts` with inferred TypeScript types
+</details>
 
 ### 5. Use in your app
 
@@ -185,6 +202,23 @@ Add to your git hooks:
 }
 ```
 
+### `lockbox set`
+
+Set a plaintext config value. Supports dot-notation for nested keys. Auto-runs `generate`.
+
+```bash
+lockbox set server.port 8080 --env production
+lockbox set db.host localhost                    # writes to default.json
+```
+
+### `lockbox set-secret`
+
+Set a secret value. Requires `--env`. Auto-runs `generate` (which encrypts and regenerates).
+
+```bash
+lockbox set-secret db.password s3cret --env production
+```
+
 ### `lockbox keygen`
 
 Generate a new encryption keypair.
@@ -195,7 +229,7 @@ lockbox keygen
 
 ### `lockbox view`
 
-View the decrypted config for an environment.
+View the full decrypted config for an environment.
 
 ```bash
 CONFIG_SECRETS_PRIVATE_KEY=... lockbox view --env production
