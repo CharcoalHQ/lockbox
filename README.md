@@ -233,31 +233,13 @@ Created by `lockbox init` in your project root:
 
 ## API
 
-The package also exports crypto and utility functions for advanced use:
-
 ```typescript
-import {
-  // Config loading
-  createConfig,
-
-  // Crypto
-  generateKeyPair,
-  loadKeyPair,
-  loadPublicKey,
-  encryptString,
-  decryptString,
-  decryptObject,
-  encryptPlaintext,
-  isEncrypted,
-
-  // Utilities
-  deepFreeze,
-  deepMerge,
-
-  // Schema
-  generateSchemaFileContent,
-} from 'lockbox';
+import { createConfig, deepFreeze } from 'lockbox';
+import type { CreateConfigOptions, CreateConfigResult, LockboxConfig } from 'lockbox';
 ```
+
+- `createConfig<T>(options)` — load and decrypt config for the current environment
+- `deepFreeze<T>(obj)` — recursively freeze an object (used by generated files)
 
 ## License
 

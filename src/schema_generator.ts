@@ -130,7 +130,7 @@ function inferType(
     types.add('unknown');
   }
 
-  return { kind: 'union', types };
+  return { kind: 'union', types: simplifyUnion(types) };
 }
 
 function inferArrayElementTypes(arr: unknown[]): Set<string> {
@@ -177,6 +177,33 @@ function renderTypeNode(node: TypeNode, indent: number): string {
   }
 
   return `{\n${entries.join('\n')}\n${pad}}`;
+}
+
+/**
+ * If `string` is in the union, remove all string literals.
+ * Same for `number` with number literals and `boolean` with true/false.
+ */
+function simplifyUnion(types: Set<string>): Set<string> {
+  if (types.has('string')) {
+    for (const t of types) {
+      if (t.startsWith("'") && t.endsWith("'")) {
+        types.delete(t);
+      }
+    }
+  }
+  if (types.has('number')) {
+    for (const t of types) {
+      if (t !== 'number' && /^-?\d+(\.\d+)?$/.test(t)) {
+        types.delete(t);
+      }
+    }
+  }
+  if (types.has('true') && types.has('false')) {
+    types.delete('true');
+    types.delete('false');
+    types.add('boolean');
+  }
+  return types;
 }
 
 function isValidIdentifier(key: string): boolean {
