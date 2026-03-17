@@ -1,5 +1,5 @@
 {
-  "name": "@charcoal/lockbox",
+  "name": "@charcoalhq/lockbox",
   "version": "0.1.0",
   "description": "Typed configuration with encrypted secrets. JSON-based, per-environment overrides, libsodium sealed-box encryption, TypeScript codegen, and validation hooks.",
   "type": "module",
