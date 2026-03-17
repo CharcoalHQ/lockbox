@@ -13,11 +13,13 @@ Commands:
   validate    Check that secrets are encrypted and generated files are up-to-date
   keygen      Generate a new encryption keypair
   view        View the decrypted config for an environment
+  set         Set a plaintext config value (clear.json or default.json)
+  set-secret  Set a secret config value (secret.json, encrypted on generate)
 
 Options:
   --dir <path>     Config directory (overrides lockbox.json)
   --envs <list>    Comma-separated environments (init only)
-  --env <name>     Environment to view (view only)
+  --env <name>     Target environment (view, set, set-secret)
   --help           Show this help message
   --version        Show version
 `;
@@ -82,6 +84,38 @@ async function main(): Promise<void> {
     case 'view': {
       const { runView } = await import('./view.js');
       runView(values.dir as string | undefined, values.env as string | undefined);
+      break;
+    }
+    case 'set': {
+      const key = positionals[1];
+      const val = positionals[2];
+      if (!key || val === undefined) {
+        console.error('Usage: lockbox set <key> <value> [--env <name>]');
+        process.exit(1);
+      }
+      const { runSet } = await import('./set.js');
+      runSet(key, val, {
+        dir: values.dir as string | undefined,
+        env: values.env as string | undefined,
+      });
+      break;
+    }
+    case 'set-secret': {
+      const secretKey = positionals[1];
+      const secretVal = positionals[2];
+      if (!secretKey || secretVal === undefined) {
+        console.error('Usage: lockbox set-secret <key> <value> --env <name>');
+        process.exit(1);
+      }
+      if (!values.env) {
+        console.error('set-secret requires --env. Secrets are always environment-specific.');
+        process.exit(1);
+      }
+      const { runSetSecret } = await import('./set.js');
+      runSetSecret(secretKey, secretVal, {
+        dir: values.dir as string | undefined,
+        env: values.env as string,
+      });
       break;
     }
     default:
