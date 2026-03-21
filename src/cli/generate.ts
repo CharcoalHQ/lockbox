@@ -49,10 +49,12 @@ export function runGenerate(dirOverride?: string): void {
     console.log(`Generated: ${env}/generated.ts`);
   }
 
-  // Generate schema.ts
-  const schemaPath = resolve(configDir, 'schema.ts');
-  writeFileSync(schemaPath, generateSchemaFileContent(mergedConfigs));
-  console.log('Generated: schema.ts');
+  // Generate schema.ts (unless user provides their own schema)
+  if (!config.skipSchemaGeneration) {
+    const schemaPath = resolve(configDir, 'schema.ts');
+    writeFileSync(schemaPath, generateSchemaFileContent(mergedConfigs));
+    console.log('Generated: schema.ts');
+  }
 
   console.log('\nConfig generation complete.');
 }

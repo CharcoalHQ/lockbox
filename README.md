@@ -101,6 +101,45 @@ import { config } from './config.js';
 app.listen(config.server.port, config.server.host);
 ```
 
+### 6. Optional: schema validation
+
+You can pass any [Standard Schema](https://github.com/standard-schema/standard-schema)-compatible schema (Zod, Valibot, ArkType, etc.) to validate and transform your config at load time:
+
+```typescript
+import { z } from 'zod';
+import { createConfig } from '@charcoalhq/lockbox';
+import testConfig from './config/test/generated.js';
+import prodConfig from './config/production/generated.js';
+
+const configSchema = z.object({
+  server: z.object({
+    host: z.string(),
+    port: z.coerce.number(),
+  }),
+  db: z.object({
+    host: z.string(),
+    port: z.number().default(5432),
+    password: z.string(),
+  }),
+});
+
+export const { config } = await createConfig({
+  configs: { test: testConfig, production: prodConfig },
+  environment: process.env.NODE_ENV ?? 'test',
+  privateKey: process.env.MY_PRIVATE_KEY,
+  schema: configSchema,
+});
+// config is fully typed as z.infer<typeof configSchema>
+```
+
+Validation runs after decryption, so your schema sees the final plaintext values. On failure, you get a clear error:
+
+```
+lockbox: Config validation failed:
+  - server.port: Expected number, received string
+  - db.password: Required
+```
+
 ## How it works
 
 ### Directory structure
@@ -271,6 +310,7 @@ Created by `lockbox init` in your project root:
 | `configs` | (required) | Map of environment name to imported config object |
 | `environment` | (required) | The active environment. Must be a key in `configs` |
 | `privateKey` | — | Base64 private key, or `() => string \| Promise<string>` resolver (e.g. from KMS). Required if config contains encrypted values |
+| `schema` | — | A [Standard Schema](https://github.com/standard-schema/standard-schema)-compliant schema to validate (and optionally transform) the config after loading |
 
 ## API
 

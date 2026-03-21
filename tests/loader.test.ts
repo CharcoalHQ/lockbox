@@ -1,4 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest';
+import { z } from 'zod';
 import { encryptString, generateKeyPair, type KeyPair } from '../src/crypto.js';
 import { deepFreeze } from '../src/deep_freeze.js';
 import { createConfig } from '../src/loader.js';
@@ -93,5 +94,95 @@ describe('createConfig', () => {
     await expect(
       createConfig({ configs: {}, environment: 'test' as never })
     ).rejects.toThrow('at least one environment');
+  });
+
+  describe('schema validation', () => {
+    it('should pass valid config through schema', async () => {
+      const schema = z.object({ host: z.string(), port: z.number() });
+
+      const { config } = await createConfig({
+        configs: { test: deepFreeze({ host: 'localhost', port: 3000 }) },
+        environment: 'test',
+        schema,
+      });
+
+      expect(config.host).toBe('localhost');
+      expect(config.port).toBe(3000);
+    });
+
+    it('should apply schema transforms', async () => {
+      const schema = z.object({
+        port: z.coerce.number(),
+      });
+
+      const { config } = await createConfig({
+        configs: { test: deepFreeze({ port: '8080' }) },
+        environment: 'test',
+        schema,
+      });
+
+      expect(config.port).toBe(8080);
+    });
+
+    it('should apply schema defaults', async () => {
+      const schema = z.object({
+        host: z.string(),
+        port: z.number().default(5432),
+      });
+
+      const { config } = await createConfig({
+        configs: { test: deepFreeze({ host: 'localhost' }) },
+        environment: 'test',
+        schema,
+      });
+
+      expect(config.host).toBe('localhost');
+      expect(config.port).toBe(5432);
+    });
+
+    it('should throw on single validation error with formatted message', async () => {
+      const schema = z.object({ port: z.number() });
+
+      const error = await createConfig({
+        configs: { test: deepFreeze({ port: 'not-a-number' }) },
+        environment: 'test',
+        schema,
+      }).catch((e: Error) => e);
+
+      expect(error).toBeInstanceOf(Error);
+      expect(error!.message).toContain('✖ port:');
+    });
+
+    it('should throw with multiple errors and formatted paths', async () => {
+      const schema = z.object({
+        database: z.object({ port: z.number() }),
+        api: z.object({ key: z.string() }),
+      });
+
+      const error = await createConfig({
+        configs: { test: deepFreeze({ database: { port: 'bad' }, api: { key: 123 } }) },
+        environment: 'test',
+        schema,
+      }).catch((e: Error) => e);
+
+      expect(error).toBeInstanceOf(Error);
+      expect(error!.message).toContain('✖ database.port:');
+      expect(error!.message).toContain('✖ api.key:');
+    });
+
+    it('should validate after decryption', async () => {
+      const schema = z.object({ secret: z.string(), plain: z.string() });
+      const encrypted = encryptString('my-secret', keyPair.publicKey);
+
+      const { config } = await createConfig({
+        configs: { production: deepFreeze({ secret: encrypted, plain: 'visible' }) },
+        environment: 'production',
+        privateKey: keyPair.privateKey.toString('base64'),
+        schema,
+      });
+
+      expect(config.secret).toBe('my-secret');
+      expect(config.plain).toBe('visible');
+    });
   });
 });

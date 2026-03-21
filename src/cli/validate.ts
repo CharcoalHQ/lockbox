@@ -74,19 +74,21 @@ export function runValidate(dirOverride?: string): void {
     }
   }
 
-  // Validate schema.ts
-  const schemaPath = resolve(configDir, 'schema.ts');
-  const expectedSchema = generateSchemaFileContent(mergedConfigs);
-  if (existsSync(schemaPath)) {
-    const actualSchema = readFileSync(schemaPath, 'utf-8');
-    if (actualSchema !== expectedSchema) {
-      console.error('ERROR: Stale schema.ts');
-      showDiff(actualSchema, expectedSchema, 'schema.ts');
+  // Validate schema.ts (unless user provides their own schema)
+  if (!config.skipSchemaGeneration) {
+    const schemaPath = resolve(configDir, 'schema.ts');
+    const expectedSchema = generateSchemaFileContent(mergedConfigs);
+    if (existsSync(schemaPath)) {
+      const actualSchema = readFileSync(schemaPath, 'utf-8');
+      if (actualSchema !== expectedSchema) {
+        console.error('ERROR: Stale schema.ts');
+        showDiff(actualSchema, expectedSchema, 'schema.ts');
+        hasErrors = true;
+      }
+    } else {
+      console.error('ERROR: Missing schema.ts');
       hasErrors = true;
     }
-  } else {
-    console.error('ERROR: Missing schema.ts');
-    hasErrors = true;
   }
 
   if (hasErrors) {
