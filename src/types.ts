@@ -1,3 +1,5 @@
+import type { StandardSchemaV1 } from './standard_schema.js';
+
 export interface KeyPair {
   publicKey: Buffer;
   privateKey: Buffer;
@@ -10,6 +12,8 @@ export interface CreateConfigOptions<T, E extends string = string> {
   environment: E;
   /** Base64-encoded private key, or an async resolver that returns one (e.g. from KMS). Required if config contains encrypted values. */
   privateKey?: string | (() => string | Promise<string>);
+  /** A StandardSchemaV1-compliant schema (e.g. Zod, Valibot, ArkType) to validate the config against after loading. */
+  schema: StandardSchemaV1;
 }
 
 export interface CreateConfigResult<T, E extends string = string> {

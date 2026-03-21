@@ -1,8 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import { createTwoFilesPatch } from 'diff';
 import { encryptPlaintext } from '../crypto.js';
-import { generateSchemaFileContent } from '../schema_generator.js';
 import { resolveConfig } from './config.js';
 import {
   discoverEnvironments,
@@ -30,7 +28,6 @@ export function runValidate(dirOverride?: string): void {
   const defaults = loadDefaults(configDir);
   const skipRequired = new Set(config.skipRequiredFieldValidation ?? []);
   let hasErrors = false;
-  const mergedConfigs: Record<string, Record<string, unknown>> = {};
 
   for (const env of environments) {
     const envConfig = loadEnvConfig(configDir, env);
@@ -43,7 +40,6 @@ export function runValidate(dirOverride?: string): void {
     }
 
     const mergedConfig = mergeConfigs(defaults, envConfig.clear, envConfig.secret);
-    mergedConfigs[env] = mergedConfig;
 
     const expectedContent = generateConfigFileContent(
       mergedConfig,
@@ -72,21 +68,6 @@ export function runValidate(dirOverride?: string): void {
         hasErrors = true;
       }
     }
-  }
-
-  // Validate schema.ts
-  const schemaPath = resolve(configDir, 'schema.ts');
-  const expectedSchema = generateSchemaFileContent(mergedConfigs);
-  if (existsSync(schemaPath)) {
-    const actualSchema = readFileSync(schemaPath, 'utf-8');
-    if (actualSchema !== expectedSchema) {
-      console.error('ERROR: Stale schema.ts');
-      showDiff(actualSchema, expectedSchema, 'schema.ts');
-      hasErrors = true;
-    }
-  } else {
-    console.error('ERROR: Missing schema.ts');
-    hasErrors = true;
   }
 
   if (hasErrors) {

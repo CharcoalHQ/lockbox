@@ -1,7 +1,5 @@
 import { writeFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import { encryptPlaintext } from '../crypto.js';
-import { generateSchemaFileContent } from '../schema_generator.js';
 import { resolveConfig } from './config.js';
 import {
   discoverEnvironments,
@@ -25,8 +23,6 @@ export function runGenerate(dirOverride?: string): void {
 
   const publicKey = loadPublicKeyFromFile(configDir);
   const defaults = loadDefaults(configDir);
-  const mergedConfigs: Record<string, Record<string, unknown>> = {};
-
   for (const env of environments) {
     const envConfig = loadEnvConfig(configDir, env);
     let envSecret = envConfig.secret;
@@ -40,7 +36,6 @@ export function runGenerate(dirOverride?: string): void {
     }
 
     const mergedConfig = mergeConfigs(defaults, envConfig.clear, envSecret);
-    mergedConfigs[env] = mergedConfig;
 
     writeFileSync(
       envConfig.generatedPath,
@@ -48,11 +43,6 @@ export function runGenerate(dirOverride?: string): void {
     );
     console.log(`Generated: ${env}/generated.ts`);
   }
-
-  // Generate schema.ts
-  const schemaPath = resolve(configDir, 'schema.ts');
-  writeFileSync(schemaPath, generateSchemaFileContent(mergedConfigs));
-  console.log('Generated: schema.ts');
 
   console.log('\nConfig generation complete.');
 }
