@@ -14,7 +14,7 @@ Typed configuration manager with encrypted secrets. Single npm package (`@charco
 - `src/cli/` - CLI commands (init, generate, validate, set, keygen, view, credentials)
 - `src/crypto.ts` - Encryption/decryption using libsodium sealed boxes
 - `src/loader.ts` - Config file loading and environment resolution
-- `src/schema_generator.ts` - TypeScript type generation from config
+- `src/standard_schema.ts` - StandardSchemaV1 interface for schema validation
 - `src/types.ts` - Core type definitions
 - `tests/` - Vitest test files
 
