@@ -12,12 +12,15 @@ describe('createConfig', () => {
   });
 
   it('should select config based on environment', async () => {
+    const schema = z.object({ mode: z.string() });
+
     const { config, environment } = await createConfig({
       configs: {
         test: deepFreeze({ mode: 'test' }),
         production: deepFreeze({ mode: 'production' }),
       },
       environment: 'production',
+      schema,
     });
 
     expect(config.mode).toBe('production');
@@ -25,9 +28,12 @@ describe('createConfig', () => {
   });
 
   it('should return plaintext config without a private key', async () => {
+    const schema = z.object({ secret: z.string() });
+
     const { config } = await createConfig({
       configs: { test: deepFreeze({ secret: 'plaintext' }) },
       environment: 'test',
+      schema,
     });
 
     expect(config.secret).toBe('plaintext');
@@ -35,11 +41,13 @@ describe('createConfig', () => {
 
   it('should decrypt config with a string private key', async () => {
     const encrypted = encryptString('my-secret', keyPair.publicKey);
+    const schema = z.object({ secret: z.string(), plain: z.string() });
 
     const { config } = await createConfig({
       configs: { production: deepFreeze({ secret: encrypted, plain: 'visible' }) },
       environment: 'production',
       privateKey: keyPair.privateKey.toString('base64'),
+      schema,
     });
 
     expect(config.secret).toBe('my-secret');
@@ -48,11 +56,13 @@ describe('createConfig', () => {
 
   it('should decrypt config with a sync resolver', async () => {
     const encrypted = encryptString('from-resolver', keyPair.publicKey);
+    const schema = z.object({ secret: z.string() });
 
     const { config } = await createConfig({
       configs: { production: deepFreeze({ secret: encrypted }) },
       environment: 'production',
       privateKey: () => keyPair.privateKey.toString('base64'),
+      schema,
     });
 
     expect(config.secret).toBe('from-resolver');
@@ -60,11 +70,13 @@ describe('createConfig', () => {
 
   it('should decrypt config with an async resolver', async () => {
     const encrypted = encryptString('from-kms', keyPair.publicKey);
+    const schema = z.object({ secret: z.string() });
 
     const { config } = await createConfig({
       configs: { production: deepFreeze({ secret: encrypted }) },
       environment: 'production',
       privateKey: async () => keyPair.privateKey.toString('base64'),
+      schema,
     });
 
     expect(config.secret).toBe('from-kms');
@@ -72,32 +84,38 @@ describe('createConfig', () => {
 
   it('should throw when config has encrypted values but no key', async () => {
     const encrypted = encryptString('secret', keyPair.publicKey);
+    const schema = z.object({ secret: z.string() });
 
     await expect(
       createConfig({
         configs: { production: deepFreeze({ secret: encrypted }) },
         environment: 'production',
+        schema,
       })
     ).rejects.toThrow('contains encrypted values but no private key');
   });
 
   it('should throw on invalid environment', async () => {
+    const schema = z.object({});
+
     await expect(
       createConfig({
         configs: { test: deepFreeze({}) },
         environment: 'invalid' as 'test',
+        schema,
       })
     ).rejects.toThrow('Invalid environment "invalid"');
   });
 
   it('should throw when configs is empty', async () => {
+    const schema = z.object({});
+
     await expect(
-      createConfig({ configs: {}, environment: 'test' as never })
+      createConfig({ configs: {}, environment: 'test' as never, schema })
     ).rejects.toThrow('at least one environment');
   });
 
-  describe('schema validation', () => {
-    it('should pass valid config through schema', async () => {
+  it('should pass valid config through schema', async () => {
       const schema = z.object({ host: z.string(), port: z.number() });
 
       const { config } = await createConfig({
@@ -184,5 +202,4 @@ describe('createConfig', () => {
       expect(config.secret).toBe('my-secret');
       expect(config.plain).toBe('visible');
     });
-  });
 });

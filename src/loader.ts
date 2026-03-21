@@ -9,8 +9,8 @@ import type { CreateConfigOptions, CreateConfigResult } from './types.js';
  * If no key is provided and the config contains encrypted values, an
  * error is thrown.
  *
- * If a `schema` is provided, the config is validated (and potentially
- * transformed) before being returned.
+ * The config is validated (and potentially transformed) using the
+ * provided schema before being returned.
  */
 export async function createConfig<
   T extends object,
@@ -18,13 +18,7 @@ export async function createConfig<
   S extends StandardSchemaV1,
 >(
   options: CreateConfigOptions<T, E> & { schema: S }
-): Promise<CreateConfigResult<StandardSchemaV1.InferOutput<S>, E>>;
-export async function createConfig<T extends object, E extends string>(
-  options: CreateConfigOptions<T, E>
-): Promise<CreateConfigResult<T, E>>;
-export async function createConfig<T extends object, E extends string>(
-  options: CreateConfigOptions<T, E>
-): Promise<CreateConfigResult<unknown, E>> {
+): Promise<CreateConfigResult<StandardSchemaV1.InferOutput<S>, E>> {
   const { configs, environment } = options;
 
   const validEnvironments = Object.keys(configs);
@@ -57,11 +51,9 @@ export async function createConfig<T extends object, E extends string>(
     config = rawConfig;
   }
 
-  if (options.schema) {
-    config = await validateSchema(config, options.schema);
-  }
+  config = await validateSchema(config, options.schema);
 
-  return { config, environment } as CreateConfigResult<unknown, E>;
+  return { config, environment } as CreateConfigResult<StandardSchemaV1.InferOutput<S>, E>;
 }
 
 async function validateSchema(

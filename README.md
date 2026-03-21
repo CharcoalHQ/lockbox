@@ -283,7 +283,7 @@ Created by `lockbox init` in your project root:
 | `configs` | (required) | Map of environment name to imported config object |
 | `environment` | (required) | The active environment. Must be a key in `configs` |
 | `privateKey` | — | Base64 private key, or `() => string \| Promise<string>` resolver (e.g. from KMS). Required if config contains encrypted values |
-| `schema` | — | A [Standard Schema](https://github.com/standard-schema/standard-schema)-compliant schema to validate (and optionally transform) the config after loading |
+| `schema` | (required) | A [Standard Schema](https://github.com/standard-schema/standard-schema)-compliant schema to validate (and optionally transform) the config after loading |
 
 ## API
 
