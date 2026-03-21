@@ -8,7 +8,6 @@ const DEFAULTS: LockboxConfig = {
   dir: './config',
   importSource: '@charcoalhq/lockbox',
   skipRequiredFieldValidation: [],
-  skipSchemaGeneration: false,
 };
 
 /**
@@ -29,10 +28,6 @@ export function resolveConfig(overrides: Partial<LockboxConfig> = {}): {
       overrides.skipRequiredFieldValidation ??
       fileConfig?.skipRequiredFieldValidation ??
       DEFAULTS.skipRequiredFieldValidation!,
-    skipSchemaGeneration:
-      overrides.skipSchemaGeneration ??
-      fileConfig?.skipSchemaGeneration ??
-      DEFAULTS.skipSchemaGeneration!,
   };
 
   // Resolve dir relative to the config file location (or cwd if no file)

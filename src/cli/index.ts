@@ -9,7 +9,7 @@ Usage:
 
 Commands:
   init        Scaffold a new config directory and generate a keypair
-  generate    Encrypt secrets and generate TypeScript config files
+  generate    Encrypt secrets and generate per-environment config files
   validate    Check that secrets are encrypted and generated files are up-to-date
   keygen          Generate a new encryption keypair
   set-private-key Store a private key locally in .lockbox/private-key

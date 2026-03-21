@@ -6,7 +6,7 @@ Define your config in JSON. Secrets get encrypted automatically. Everything is m
 
 - **Per-environment overrides** — base defaults deep-merged with environment-specific config and secrets
 - **Encrypted secrets** — libsodium sealed boxes. Public key lives in your repo, private key stays in your secrets manager
-- **Full type safety** — TypeScript types and frozen config objects are generated from your actual values
+- **Full type safety** — validate and type your config with any [Standard Schema](https://github.com/standard-schema/standard-schema)-compatible library (Zod, Valibot, ArkType, etc.)
 - **Git hooks** — validates that secrets are encrypted and generated files are fresh before you push
 
 ## Quick start
@@ -80,30 +80,7 @@ Then run `npx lockbox generate` to encrypt secrets and generate TypeScript files
 
 ### 5. Use in your app
 
-```typescript
-import { createConfig } from '@charcoalhq/lockbox';
-import type { Config } from './config/schema.js';
-import testConfig from './config/test/generated.js';
-import prodConfig from './config/production/generated.js';
-
-export const { config, environment } = await createConfig<Config>({
-  configs: { test: testConfig, production: prodConfig },
-  environment: process.env.NODE_ENV ?? 'test',
-  privateKey: process.env.MY_PRIVATE_KEY,
-});
-```
-
-Access your config with full type safety:
-
-```typescript
-import { config } from './config.js';
-
-app.listen(config.server.port, config.server.host);
-```
-
-### 6. Optional: schema validation
-
-You can pass any [Standard Schema](https://github.com/standard-schema/standard-schema)-compatible schema (Zod, Valibot, ArkType, etc.) to validate and transform your config at load time:
+Define your schema using any [Standard Schema](https://github.com/standard-schema/standard-schema)-compatible library (Zod, Valibot, ArkType, etc.):
 
 ```typescript
 import { z } from 'zod';
@@ -123,7 +100,7 @@ const configSchema = z.object({
   }),
 });
 
-export const { config } = await createConfig({
+export const { config, environment } = await createConfig({
   configs: { test: testConfig, production: prodConfig },
   environment: process.env.NODE_ENV ?? 'test',
   privateKey: process.env.MY_PRIVATE_KEY,
@@ -136,8 +113,16 @@ Validation runs after decryption, so your schema sees the final plaintext values
 
 ```
 lockbox: Config validation failed:
-  - server.port: Expected number, received string
-  - db.password: Required
+  ✖ server.port: Expected number, received string
+  ✖ db.password: Required
+```
+
+Access your config with full type safety:
+
+```typescript
+import { config } from './config.js';
+
+app.listen(config.server.port, config.server.host);
 ```
 
 ## How it works
@@ -147,7 +132,6 @@ lockbox: Config validation failed:
 ```
 src/config/
 ├── lockbox.pub          # Public key (committed to repo)
-├── schema.ts            # Auto-generated TypeScript types
 ├── default.json         # Base config merged into all environments
 ├── test/
 │   ├── clear.json       # Non-secret overrides
@@ -178,17 +162,6 @@ Secrets use **libsodium sealed boxes**:
 
 Add secrets as plaintext to `secret.json` and run `lockbox generate` — they'll be encrypted automatically.
 
-### Schema generation
-
-`lockbox generate` produces a `schema.ts` by analyzing config values across all environments:
-
-- String values become union literals: `'mem' | 'pg'`
-- Number values become union literals: `3000 | 8080`
-- Boolean values become `true | false`
-- Objects are recursed and keys are merged
-- Keys present in some environments but not others are marked optional (`?`)
-- Encrypted values (`ENC[...]`) and `**REQUIRED**` sentinels become `string`
-
 ### Required fields
 
 Use the `**REQUIRED**` sentinel in `default.json` to mark fields that must be set in each environment:
@@ -217,7 +190,7 @@ lockbox init --dir ./src/config --envs test,staging,production
 
 ### `lockbox generate`
 
-Encrypt plaintext secrets and generate TypeScript files.
+Encrypt plaintext secrets and generate per-environment config files.
 
 ```bash
 lockbox generate

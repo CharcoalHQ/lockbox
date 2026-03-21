@@ -28,6 +28,4 @@ export interface LockboxConfig {
   importSource?: string;
   /** Environments where required field validation is skipped. */
   skipRequiredFieldValidation?: string[];
-  /** Skip schema.ts generation (use when providing your own schema via StandardSchemaV1). */
-  skipSchemaGeneration?: boolean;
 }
