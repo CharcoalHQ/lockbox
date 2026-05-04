@@ -29,7 +29,7 @@ export const { config } = await createConfig({
 });`,
         "typescript"
       ),
-      highlight(`LOCKBOX_OVERRIDE=./config/local-overrides.json`, "shellsession"),
+      highlight(`LOCKBOX_OVERRIDE=./config/local-overrides.json`, "bash"),
       highlight(
         `{
   "db": {
@@ -51,12 +51,12 @@ export const { config } = await createConfig({
         "typescript"
       ),
       highlight(
-        `$ lockbox view --env production --override ./config/local-overrides.json`,
-        "shellsession"
+        `lockbox view --env production --override ./config/local-overrides.json`,
+        "bash"
       ),
       highlight(
-        `$ lockbox view --env production --override base.json --override debug.json`,
-        "shellsession"
+        `lockbox view --env production --override base.json --override debug.json`,
+        "bash"
       ),
     ]);
 

@@ -9,25 +9,16 @@ export function meta() {
 export async function loader() {
   const [initCmd, setValues, appCode, errorOutput, tree] = await Promise.all([
     highlight(
-      `$ npx lockbox init --dir ./src/config --env test --env production
-
-Created config directory: ./src/config
-  test/clear.json
-  test/secret.json
-  production/clear.json
-  production/secret.json
-  default.json
-  lockbox.pub
-  Private key saved to .lockbox/private-key`,
-      "shellsession"
+      `npx lockbox init --dir ./src/config --env test --env production`,
+      "bash"
     ),
     highlight(
-      `$ npx lockbox set db.host localhost
-$ npx lockbox set db.port 5432
-$ npx lockbox set db.password '**REQUIRED**'
-$ npx lockbox set db.host prod.db.example.com --env production
-$ npx lockbox set-secret db.password hunter2 --env production`,
-      "shellsession"
+      `npx lockbox set db.host localhost
+npx lockbox set db.port 5432
+npx lockbox set db.password '**REQUIRED**'
+npx lockbox set db.host prod.db.example.com --env production
+npx lockbox set-secret db.password hunter2 --env production`,
+      "bash"
     ),
     highlight(
       `import { z } from 'zod';
