@@ -4,8 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "react-router dev",
-    "build": "react-router build && cp build/client/__spa-fallback.html build/client/404.html && touch build/client/.nojekyll",
-    "preview": "npx -y serve build/client"
+    "build": "react-router build && cp build/client/__spa-fallback.html build/client/404.html && touch build/client/.nojekyll"
   },
   "dependencies": {
     "@react-router/node": "^7.14.2",
