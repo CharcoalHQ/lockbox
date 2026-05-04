@@ -202,4 +202,75 @@ describe('createConfig', () => {
       expect(config.secret).toBe('my-secret');
       expect(config.plain).toBe('visible');
     });
+
+    it('should apply overrides on top of config', async () => {
+      const schema = z.object({ host: z.string(), port: z.number() });
+
+      const { config } = await createConfig({
+        configs: { test: deepFreeze({ host: 'localhost', port: 3000 }) },
+        environment: 'test',
+        schema,
+        overrides: { port: 9999 },
+      });
+
+      expect(config.host).toBe('localhost');
+      expect(config.port).toBe(9999);
+    });
+
+    it('should deep-merge overrides into nested objects', async () => {
+      const schema = z.object({
+        db: z.object({ host: z.string(), port: z.number() }),
+      });
+
+      const { config } = await createConfig({
+        configs: { test: deepFreeze({ db: { host: 'localhost', port: 5432 } }) },
+        environment: 'test',
+        schema,
+        overrides: { db: { host: 'override.db.com' } },
+      });
+
+      expect(config.db.host).toBe('override.db.com');
+      expect(config.db.port).toBe(5432);
+    });
+
+    it('should apply overrides after decryption', async () => {
+      const encrypted = encryptString('original-secret', keyPair.publicKey);
+      const schema = z.object({ secret: z.string() });
+
+      const { config } = await createConfig({
+        configs: { production: deepFreeze({ secret: encrypted }) },
+        environment: 'production',
+        privateKey: keyPair.privateKey.toString('base64'),
+        schema,
+        overrides: { secret: 'overridden' },
+      });
+
+      expect(config.secret).toBe('overridden');
+    });
+
+    it('should validate overridden config against schema', async () => {
+      const schema = z.object({ port: z.number() });
+
+      await expect(
+        createConfig({
+          configs: { test: deepFreeze({ port: 3000 }) },
+          environment: 'test',
+          schema,
+          overrides: { port: 'not-a-number' },
+        })
+      ).rejects.toThrow('✖ port:');
+    });
+
+    it('should not alter config when overrides is empty', async () => {
+      const schema = z.object({ host: z.string() });
+
+      const { config } = await createConfig({
+        configs: { test: deepFreeze({ host: 'localhost' }) },
+        environment: 'test',
+        schema,
+        overrides: {},
+      });
+
+      expect(config.host).toBe('localhost');
+    });
 });

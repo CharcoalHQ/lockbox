@@ -12,11 +12,19 @@ Typed configuration manager with encrypted secrets. Single npm package (`@charco
 # Architecture
 
 - `src/cli/` - CLI commands (init, generate, validate, set, keygen, view, credentials)
+- `src/cli/inheritance.ts` - Config inheritance (`_extends`) resolution and cycle detection
 - `src/crypto.ts` - Encryption/decryption using libsodium sealed boxes
-- `src/loader.ts` - Config file loading and environment resolution
+- `src/loader.ts` - Config file loading, environment resolution, and runtime overrides
 - `src/standard_schema.ts` - StandardSchemaV1 interface for schema validation
 - `src/types.ts` - Core type definitions
 - `tests/` - Vitest test files
+
+# Key Concepts
+
+- **Config inheritance**: Environments can extend other environments via `_extends` in `clear.json`
+- **Sub-environments**: Subdirectories within an environment (e.g. regions, clusters) with their own `clear.json`/`secret.json`
+- **Runtime overrides**: `createConfig({ overrides })` deep-merges ad-hoc config after decryption, before validation
+- **Merge order**: `default < ancestors < env/clear < env/secret < sub-env/clear < sub-env/secret < overrides`
 
 # Code Style
 

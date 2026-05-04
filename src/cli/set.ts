@@ -11,10 +11,15 @@ import { discoverEnvironments, loadJson } from './utils.js';
 export function runSet(
   key: string,
   value: string,
-  opts: { dir?: string; env?: string }
+  opts: { dir?: string; env?: string; subEnv?: string }
 ): void {
   const { configDir } = resolveConfig(opts.dir ? { dir: opts.dir } : {});
   const parsed = parseValue(value);
+
+  if (opts.subEnv && !opts.env) {
+    console.error('--sub-env requires --env.');
+    process.exit(1);
+  }
 
   if (!opts.env) {
     const defaultPath = resolve(configDir, 'default.json');
@@ -31,11 +36,17 @@ export function runSet(
       process.exit(1);
     }
 
-    const filePath = resolve(configDir, opts.env, 'clear.json');
+    const subdir = opts.subEnv
+      ? resolve(configDir, opts.env, opts.subEnv)
+      : resolve(configDir, opts.env);
+    const filePath = resolve(subdir, 'clear.json');
     const data = loadJson(filePath);
     setNestedValue(data, key, parsed);
     writeFileSync(filePath, `${JSON.stringify(data, null, 2)}\n`);
-    console.log(`Set ${key} in ${opts.env}/clear.json`);
+    const label = opts.subEnv
+      ? `${opts.env}/${opts.subEnv}/clear.json`
+      : `${opts.env}/clear.json`;
+    console.log(`Set ${key} in ${label}`);
   }
 
   runGenerate(opts.dir);
@@ -48,7 +59,7 @@ export function runSet(
 export function runSetSecret(
   key: string,
   value: string,
-  opts: { dir?: string; env: string }
+  opts: { dir?: string; env: string; subEnv?: string }
 ): void {
   const { configDir } = resolveConfig(opts.dir ? { dir: opts.dir } : {});
 
@@ -60,11 +71,17 @@ export function runSetSecret(
     process.exit(1);
   }
 
-  const filePath = resolve(configDir, opts.env, 'secret.json');
+  const subdir = opts.subEnv
+    ? resolve(configDir, opts.env, opts.subEnv)
+    : resolve(configDir, opts.env);
+  const filePath = resolve(subdir, 'secret.json');
   const data = loadJson(filePath);
-  setNestedValue(data, key, value); // Always store as string — will be encrypted on generate
+  setNestedValue(data, key, value);
   writeFileSync(filePath, `${JSON.stringify(data, null, 2)}\n`);
-  console.log(`Set ${key} in ${opts.env}/secret.json`);
+  const label = opts.subEnv
+    ? `${opts.env}/${opts.subEnv}/secret.json`
+    : `${opts.env}/secret.json`;
+  console.log(`Set ${key} in ${label}`);
 
   runGenerate(opts.dir);
 }

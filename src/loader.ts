@@ -1,4 +1,5 @@
 import { decryptObject, isEncrypted, loadKeyPair } from './crypto.js';
+import { deepMerge } from './deep_merge.js';
 import type { StandardSchemaV1 } from './standard_schema.js';
 import type { CreateConfigOptions, CreateConfigResult } from './types.js';
 
@@ -49,6 +50,10 @@ export async function createConfig<
     );
   } else {
     config = rawConfig;
+  }
+
+  if (options.overrides && Object.keys(options.overrides).length > 0) {
+    config = deepMerge(config as Record<string, unknown>, options.overrides);
   }
 
   config = await validateSchema(config, options.schema);

@@ -14,6 +14,8 @@ export interface CreateConfigOptions<T, E extends string = string> {
   privateKey?: string | (() => string | Promise<string>);
   /** A StandardSchemaV1-compliant schema (e.g. Zod, Valibot, ArkType) to validate the config against after loading. */
   schema: StandardSchemaV1;
+  /** Partial config deep-merged on top after decryption, before validation. */
+  overrides?: Record<string, unknown>;
 }
 
 export interface CreateConfigResult<T, E extends string = string> {

@@ -4,11 +4,13 @@ import { encryptPlaintext } from '../crypto.js';
 import { resolveConfig } from './config.js';
 import {
   discoverEnvironments,
+  discoverSubEnvironments,
   generateConfigFileContent,
   loadDefaults,
   loadEnvConfig,
   loadPublicKeyFromFile,
-  mergeConfigs,
+  loadSubEnvConfig,
+  resolveFullMerge,
 } from './utils.js';
 
 const REQUIRED_PROPERTY_VALUE = '**REQUIRED**';
@@ -32,14 +34,13 @@ export function runValidate(dirOverride?: string): void {
   for (const env of environments) {
     const envConfig = loadEnvConfig(configDir, env);
 
-    // All secrets should be encrypted.
     const { didChange } = encryptPlaintext(envConfig.secret, publicKey);
     if (didChange) {
       console.error(`ERROR: Secrets are not all encrypted in ${env}/secret.json.`);
       hasErrors = true;
     }
 
-    const mergedConfig = mergeConfigs(defaults, envConfig.clear, envConfig.secret);
+    const mergedConfig = resolveFullMerge(configDir, env, defaults, environments);
 
     const expectedContent = generateConfigFileContent(
       mergedConfig,
@@ -49,14 +50,13 @@ export function runValidate(dirOverride?: string): void {
     if (!existsSync(envConfig.generatedPath)) {
       console.error(`ERROR: Missing generated config: ${env}/generated.ts`);
       hasErrors = true;
-      continue;
-    }
-
-    const actualContent = readFileSync(envConfig.generatedPath, 'utf-8');
-    if (actualContent !== expectedContent) {
-      console.error(`ERROR: Stale generated config: ${env}/generated.ts`);
-      showDiff(actualContent, expectedContent, `${env}/generated.ts`);
-      hasErrors = true;
+    } else {
+      const actualContent = readFileSync(envConfig.generatedPath, 'utf-8');
+      if (actualContent !== expectedContent) {
+        console.error(`ERROR: Stale generated config: ${env}/generated.ts`);
+        showDiff(actualContent, expectedContent, `${env}/generated.ts`);
+        hasErrors = true;
+      }
     }
 
     if (!skipRequired.has(env)) {
@@ -66,6 +66,52 @@ export function runValidate(dirOverride?: string): void {
           `ERROR: Missing required fields in ${env}: ${missingFields.join(', ')}`
         );
         hasErrors = true;
+      }
+    }
+
+    // Validate sub-environments
+    for (const subEnv of discoverSubEnvironments(configDir, env)) {
+      const subEnvConfig = loadSubEnvConfig(configDir, env, subEnv);
+
+      const { didChange: subDidChange } = encryptPlaintext(subEnvConfig.secret, publicKey);
+      if (subDidChange) {
+        console.error(`ERROR: Secrets are not all encrypted in ${env}/${subEnv}/secret.json.`);
+        hasErrors = true;
+      }
+
+      if ('_extends' in subEnvConfig.clear) {
+        console.error(`ERROR: _extends is not supported in sub-environment configs (found in ${env}/${subEnv}/clear.json).`);
+        hasErrors = true;
+        continue;
+      }
+
+      const subEnvMerged = resolveFullMerge(configDir, env, defaults, environments, subEnv);
+
+      const subExpected = generateConfigFileContent(
+        subEnvMerged,
+        config.importSource!
+      );
+
+      if (!existsSync(subEnvConfig.generatedPath)) {
+        console.error(`ERROR: Missing generated config: ${env}/${subEnv}/generated.ts`);
+        hasErrors = true;
+      } else {
+        const subActual = readFileSync(subEnvConfig.generatedPath, 'utf-8');
+        if (subActual !== subExpected) {
+          console.error(`ERROR: Stale generated config: ${env}/${subEnv}/generated.ts`);
+          showDiff(subActual, subExpected, `${env}/${subEnv}/generated.ts`);
+          hasErrors = true;
+        }
+      }
+
+      if (!skipRequired.has(env)) {
+        const missingFields = findMissingRequiredFields(subEnvMerged);
+        if (missingFields.length > 0) {
+          console.error(
+            `ERROR: Missing required fields in ${env}/${subEnv}: ${missingFields.join(', ')}`
+          );
+          hasErrors = true;
+        }
       }
     }
   }

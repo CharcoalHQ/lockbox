@@ -6,9 +6,9 @@ import { savePrivateKey } from './credentials.js';
 const HOOK_COMMAND = 'npx lockbox validate';
 const HOOK_MARKER = '# lockbox:validate';
 
-export function runInit(dir: string, envs: string[]): void {
+export function runInit(dir: string, envs: string[], subEnvs: string[] = []): void {
   if (envs.length === 0) {
-    console.error('At least one environment is required. Use --envs test,production');
+    console.error('At least one environment is required. Use --env test --env production');
     process.exit(1);
   }
 
@@ -18,6 +18,9 @@ export function runInit(dir: string, envs: string[]): void {
   mkdirSync(configDir, { recursive: true });
   for (const env of envs) {
     mkdirSync(resolve(configDir, env), { recursive: true });
+    for (const region of subEnvs) {
+      mkdirSync(resolve(configDir, env, region), { recursive: true });
+    }
   }
 
   // Generate keypair
@@ -44,6 +47,18 @@ export function runInit(dir: string, envs: string[]): void {
     if (!existsSync(secretPath)) {
       writeFileSync(secretPath, '{}\n');
     }
+
+    for (const region of subEnvs) {
+      const regionClearPath = resolve(configDir, env, region, 'clear.json');
+      const regionSecretPath = resolve(configDir, env, region, 'secret.json');
+
+      if (!existsSync(regionClearPath)) {
+        writeFileSync(regionClearPath, '{}\n');
+      }
+      if (!existsSync(regionSecretPath)) {
+        writeFileSync(regionSecretPath, '{}\n');
+      }
+    }
   }
 
   // Write lockbox.json
@@ -65,6 +80,10 @@ export function runInit(dir: string, envs: string[]): void {
   for (const env of envs) {
     console.log(`  ${env}/clear.json`);
     console.log(`  ${env}/secret.json`);
+    for (const region of subEnvs) {
+      console.log(`  ${env}/${region}/clear.json`);
+      console.log(`  ${env}/${region}/secret.json`);
+    }
   }
   console.log(`  default.json`);
   console.log(`  lockbox.pub`);

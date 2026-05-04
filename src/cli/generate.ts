@@ -3,11 +3,13 @@ import { encryptPlaintext } from '../crypto.js';
 import { resolveConfig } from './config.js';
 import {
   discoverEnvironments,
+  discoverSubEnvironments,
   generateConfigFileContent,
   loadDefaults,
   loadEnvConfig,
   loadPublicKeyFromFile,
-  mergeConfigs,
+  loadSubEnvConfig,
+  resolveFullMerge,
 } from './utils.js';
 
 export function runGenerate(dirOverride?: string): void {
@@ -23,25 +25,55 @@ export function runGenerate(dirOverride?: string): void {
 
   const publicKey = loadPublicKeyFromFile(configDir);
   const defaults = loadDefaults(configDir);
+
+  // Pass 1: Encrypt all plaintext secrets (environments + sub-environments)
   for (const env of environments) {
     const envConfig = loadEnvConfig(configDir, env);
-    let envSecret = envConfig.secret;
-
-    // Encrypt any plaintext in env secrets
-    const { result, didChange } = encryptPlaintext(envSecret, publicKey);
+    const { result, didChange } = encryptPlaintext(envConfig.secret, publicKey);
     if (didChange) {
-      envSecret = result as Record<string, unknown>;
-      writeFileSync(envConfig.secretPath, `${JSON.stringify(envSecret, null, 2)}\n`);
+      writeFileSync(envConfig.secretPath, `${JSON.stringify(result, null, 2)}\n`);
       console.log(`Encrypted plaintext secrets in: ${env}/secret.json`);
     }
 
-    const mergedConfig = mergeConfigs(defaults, envConfig.clear, envSecret);
+    for (const subEnv of discoverSubEnvironments(configDir, env)) {
+      const subEnvConfig = loadSubEnvConfig(configDir, env, subEnv);
+      const { result: subResult, didChange: subDidChange } =
+        encryptPlaintext(subEnvConfig.secret, publicKey);
+      if (subDidChange) {
+        writeFileSync(subEnvConfig.secretPath, `${JSON.stringify(subResult, null, 2)}\n`);
+        console.log(`Encrypted plaintext secrets in: ${env}/${subEnv}/secret.json`);
+      }
+    }
+  }
+
+  // Pass 2: Resolve inheritance, merge, and generate
+  for (const env of environments) {
+    const mergedConfig = resolveFullMerge(configDir, env, defaults, environments);
+    const envConfig = loadEnvConfig(configDir, env);
 
     writeFileSync(
       envConfig.generatedPath,
       generateConfigFileContent(mergedConfig, config.importSource!)
     );
     console.log(`Generated: ${env}/generated.ts`);
+
+    for (const subEnv of discoverSubEnvironments(configDir, env)) {
+      const subEnvConfig = loadSubEnvConfig(configDir, env, subEnv);
+      if ('_extends' in subEnvConfig.clear) {
+        console.error(
+          `ERROR: _extends is not supported in sub-environment configs (found in ${env}/${subEnv}/clear.json).`
+        );
+        process.exit(1);
+      }
+
+      const subEnvMerged = resolveFullMerge(configDir, env, defaults, environments, subEnv);
+
+      writeFileSync(
+        subEnvConfig.generatedPath,
+        generateConfigFileContent(subEnvMerged, config.importSource!)
+      );
+      console.log(`Generated: ${env}/${subEnv}/generated.ts`);
+    }
   }
 
   console.log('\nConfig generation complete.');
