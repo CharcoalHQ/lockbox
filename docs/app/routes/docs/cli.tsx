@@ -20,7 +20,7 @@ Options:
     highlight(
       `$ lockbox init --dir ./src/config --env test --env production
 $ lockbox init --env test --env production --sub-env us-west-2 --sub-env eu-central-1`,
-      "text"
+      "shellsession"
     ),
     highlight(
       `Usage: lockbox generate [options]
@@ -49,7 +49,7 @@ Options:
       `$ lockbox set db.host localhost
 $ lockbox set db.host prod.db.com --env production
 $ lockbox set db.host us.db.com --env production --sub-env us-west-2`,
-      "text"
+      "shellsession"
     ),
     highlight(
       `Usage: lockbox set-secret <key> <value> [options]
@@ -74,7 +74,7 @@ Options:
       `$ lockbox view --env production
 $ lockbox view --env production --sub-env us-west-2
 $ lockbox view --env production --override local.json`,
-      "text"
+      "shellsession"
     ),
   ]);
 

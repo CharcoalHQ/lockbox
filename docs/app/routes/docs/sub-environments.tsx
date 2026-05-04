@@ -37,20 +37,18 @@ export async function loader() {
     ├── clear.json
     ├── secret.json
     └── generated.ts`,
-      "text"
+      "yaml"
     ),
     highlight(
       `$ npx lockbox init --dir ./src/config --env test --env production --sub-env us-west-2 --sub-env eu-central-1`,
-      "text"
+      "shellsession"
     ),
     highlight(
       `$ mkdir -p src/config/production/ap-southeast-1
 $ echo '{}' > src/config/production/ap-southeast-1/clear.json
 $ echo '{}' > src/config/production/ap-southeast-1/secret.json
-
-# Set a value
 $ npx lockbox set db.host ap-southeast-1.db.example.com --env production --sub-env ap-southeast-1`,
-      "text"
+      "shellsession"
     ),
     highlight(
       `{
@@ -104,15 +102,10 @@ export const { config } = await createConfig({
       "typescript"
     ),
     highlight(
-      `# Set a value in a sub-environment
-$ lockbox set db.host us-west-2.db.com --env production --sub-env us-west-2
-
-# Set a secret in a sub-environment
+      `$ lockbox set db.host us-west-2.db.com --env production --sub-env us-west-2
 $ lockbox set-secret db.password s3cret --env production --sub-env us-west-2
-
-# View the resolved config for a sub-environment
 $ lockbox view --env production --sub-env us-west-2`,
-      "text"
+      "shellsession"
     ),
   ]);
 

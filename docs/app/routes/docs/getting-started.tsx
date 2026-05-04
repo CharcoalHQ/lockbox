@@ -19,20 +19,15 @@ Created config directory: ./src/config
   default.json
   lockbox.pub
   Private key saved to .lockbox/private-key`,
-      "text"
+      "shellsession"
     ),
     highlight(
-      `# Set defaults (shared across all environments)
-$ npx lockbox set db.host localhost
+      `$ npx lockbox set db.host localhost
 $ npx lockbox set db.port 5432
 $ npx lockbox set db.password '**REQUIRED**'
-
-# Override per environment
 $ npx lockbox set db.host prod.db.example.com --env production
-
-# Set secrets (encrypted on generate)
 $ npx lockbox set-secret db.password hunter2 --env production`,
-      "text"
+      "shellsession"
     ),
     highlight(
       `import { z } from 'zod';
@@ -74,7 +69,7 @@ export const { config, environment } = await createConfig({
     ├── clear.json
     ├── secret.json
     └── generated.ts`,
-      "text"
+      "yaml"
     ),
   ]);
 

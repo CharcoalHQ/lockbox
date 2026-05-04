@@ -32,18 +32,11 @@ createConfig({
         "typescript"
       ),
       highlight(
-        `# Generate a new keypair
-$ lockbox keygen
-
-# Store a private key locally
+        `$ lockbox keygen
 $ lockbox set-private-key <base64-key>
-
-# Add a secret (plaintext, encrypted on generate)
 $ lockbox set-secret db.password s3cret --env production
-
-# View decrypted config for an environment
 $ lockbox view --env production`,
-        "text"
+        "shellsession"
       ),
       highlight(
         `  "db": {
