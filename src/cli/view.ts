@@ -1,9 +1,21 @@
 import { decryptObject, isEncrypted, loadKeyPair } from '../crypto.js';
+import { deepMerge } from '../deep_merge.js';
 import { resolveConfig } from './config.js';
 import { loadPrivateKey } from './credentials.js';
-import { discoverEnvironments, loadDefaults, loadEnvConfig, mergeConfigs } from './utils.js';
+import {
+  discoverEnvironments,
+  discoverSubEnvironments,
+  loadDefaults,
+  loadOverrides,
+  resolveFullMerge,
+} from './utils.js';
 
-export function runView(dirOverride?: string, envOverride?: string): void {
+export function runView(
+  dirOverride?: string,
+  envOverride?: string,
+  subEnvOverride?: string,
+  overridePaths?: string[]
+): void {
   const { configDir } = resolveConfig(dirOverride ? { dir: dirOverride } : {});
 
   const environments = discoverEnvironments(configDir);
@@ -26,9 +38,28 @@ export function runView(dirOverride?: string, envOverride?: string): void {
     process.exit(1);
   }
 
+  if (subEnvOverride) {
+    const subEnvs = discoverSubEnvironments(configDir, envOverride);
+    if (!subEnvs.includes(subEnvOverride)) {
+      console.error(
+        `Unknown sub-environment "${subEnvOverride}" for environment "${envOverride}". ` +
+        (subEnvs.length > 0
+          ? `Available: ${subEnvs.join(', ')}`
+          : `No sub-environments found for ${envOverride}.`)
+      );
+      process.exit(1);
+    }
+  }
+
   const defaults = loadDefaults(configDir);
-  const envConfig = loadEnvConfig(configDir, envOverride);
-  let merged = mergeConfigs(defaults, envConfig.clear, envConfig.secret);
+  let merged = resolveFullMerge(configDir, envOverride, defaults, environments, subEnvOverride);
+
+  if (overridePaths && overridePaths.length > 0) {
+    const overrides = loadOverrides(process.cwd(), overridePaths);
+    for (const override of overrides) {
+      merged = deepMerge(merged, override);
+    }
+  }
 
   const privateKey = loadPrivateKey();
   if (privateKey) {

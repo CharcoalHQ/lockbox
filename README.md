@@ -5,6 +5,9 @@ The last config and secrets manager your TypeScript app needs.
 Define your config in JSON. Secrets get encrypted automatically. Everything is merged per-environment, typed end-to-end, and validated on every commit. No more `.env` juggling, no more runtime surprises.
 
 - **Per-environment overrides** — base defaults deep-merged with environment-specific config and secrets
+- **Config inheritance** — environments can extend other environments (`_extends`), sharing a common base without duplication
+- **Sub-environments** — nest additional config layers within an environment for regions, clusters, tenants, or any other dimension
+- **Partial overrides** — layer ad-hoc config on top at runtime, without baking it into generated files
 - **Encrypted secrets** — libsodium sealed boxes. Public key lives in your repo, private key stays in your secrets manager
 - **Full type safety** — validate and type your config with any [Standard Schema](https://github.com/standard-schema/standard-schema)-compatible library (Zod, Valibot, ArkType, etc.)
 - **Git hooks** — validates that secrets are encrypted and generated files are fresh before you push
@@ -20,7 +23,10 @@ pnpm add @charcoalhq/lockbox
 ### 2. Initialize
 
 ```bash
-npx lockbox init --dir ./src/config --envs test,production
+npx lockbox init --dir ./src/config --env test --env production
+
+# With sub-environments (e.g. regions):
+npx lockbox init --dir ./src/config --env test --env production --sub-env us-west-2 --sub-env eu-central-1
 ```
 
 This creates the directory structure, generates a keypair, and prints your private key. **Save the private key securely** — it won't be shown again.
@@ -39,6 +45,9 @@ npx lockbox set db.password '**REQUIRED**'
 
 # Override per environment
 npx lockbox set db.host prod.db.example.com --env production
+
+# Override per sub-environment
+npx lockbox set db.host us-west-2.db.example.com --env production --sub-env us-west-2
 
 # Set secrets (encrypted automatically)
 npx lockbox set-secret db.password hunter2 --env production
@@ -140,7 +149,11 @@ src/config/
 └── production/
     ├── clear.json
     ├── secret.json
-    └── generated.ts
+    ├── generated.ts
+    └── us-west-2/       # Sub-environment (optional)
+        ├── clear.json
+        ├── secret.json
+        └── generated.ts
 ```
 
 ### Merge order
@@ -148,10 +161,86 @@ src/config/
 For each environment, configs are deep-merged in this order:
 
 ```
-default.json < {env}/clear.json < {env}/secret.json
+default.json
+  < ...ancestor environments (via _extends, most distant first)...
+  < {env}/clear.json
+  < {env}/secret.json
+  < {env}/{sub-env}/clear.json    (if sub-environment exists)
+  < {env}/{sub-env}/secret.json   (if sub-environment exists)
+  < overrides                     (runtime only)
 ```
 
 Later values override earlier ones. Objects are merged recursively; all other values (arrays, primitives, null) are replaced.
+
+### Config inheritance
+
+Environments can extend other environments using `_extends` in `clear.json`:
+
+```json
+// staging/clear.json
+{
+  "_extends": "production",
+  "logging": { "level": "debug" }
+}
+```
+
+Staging will inherit production's full merged config, then apply its own overrides on top. Multi-level chains work too (dev extends staging extends production). The `_extends` key is stripped from the final config.
+
+### Sub-environments
+
+Add additional config layers as subdirectories within an environment. Any subdirectory containing `clear.json` or `secret.json` is treated as a sub-environment. Use cases include regions, clusters, tenants, or any other dimension you need:
+
+```
+production/
+├── clear.json              # Base production config
+├── secret.json
+├── generated.ts
+├── us-west-2/              # Region-specific overrides
+│   ├── clear.json
+│   ├── secret.json
+│   └── generated.ts
+└── eu-central-1/
+    ├── clear.json
+    ├── secret.json
+    └── generated.ts
+```
+
+Sub-environments inherit the full parent environment config (including any `_extends` chain) and apply their own overrides on top. Each sub-environment gets its own `generated.ts`.
+
+Import the sub-environment's generated file directly:
+
+```typescript
+import prodUsWest from './config/production/us-west-2/generated.js';
+
+const { config } = await createConfig({
+  configs: { 'production-us-west-2': prodUsWest },
+  environment: 'production-us-west-2',
+  schema: configSchema,
+});
+```
+
+### Runtime overrides
+
+Apply ad-hoc overrides at runtime without baking them into generated files:
+
+```typescript
+const { config } = await createConfig({
+  configs: { production: prodConfig },
+  environment: 'production',
+  schema: configSchema,
+  overrides: {
+    db: { host: 'local-override.db.com' },
+  },
+});
+```
+
+Overrides are deep-merged after decryption and before schema validation. Use them for local development or testing — they are never written to `generated.ts`.
+
+You can also view the effective config with overrides applied via the CLI:
+
+```bash
+lockbox view --env production --override local.json
+```
 
 ### Encryption
 
@@ -161,6 +250,9 @@ Secrets use **libsodium sealed boxes**:
 - Format: `ENC[base64_ciphertext]`
 
 Add secrets as plaintext to `secret.json` and run `lockbox generate` — they'll be encrypted automatically.
+
+> [!NOTE]
+> **Committing encrypted secrets is safe.** The ciphertext in your repo is useless without the private key, which never touches git. This is the same approach used by [Mozilla SOPS](https://github.com/mozilla/sops), [Sealed Secrets](https://github.com/bitnami-labs/sealed-secrets), and [Transcrypt](https://github.com/transcrypt-org/transcrypt). Think of it like SSH keys: the public key encrypts (safe to share), the private key decrypts (never shared). Git hooks prevent plaintext secrets from ever being committed.
 
 ### Required fields
 
@@ -185,12 +277,13 @@ All commands respect `lockbox.json` for defaults. Use `--dir` to override.
 Scaffold a new config directory and generate a keypair.
 
 ```bash
-lockbox init --dir ./src/config --envs test,staging,production
+lockbox init --dir ./src/config --env test --env staging --env production
+lockbox init --dir ./src/config --env test --env production --sub-env us-west-2 --sub-env eu-central-1
 ```
 
 ### `lockbox generate`
 
-Encrypt plaintext secrets and generate per-environment config files.
+Encrypt plaintext secrets and generate per-environment config files (including sub-environments).
 
 ```bash
 lockbox generate
@@ -198,7 +291,7 @@ lockbox generate
 
 ### `lockbox validate`
 
-Check that secrets are encrypted, generated files are up-to-date, and required fields are present.
+Check that secrets are encrypted, generated files are up-to-date, and required fields are present (including sub-environments).
 
 ```bash
 lockbox validate
@@ -221,7 +314,8 @@ Set a plaintext config value. Supports dot-notation for nested keys. Auto-runs `
 
 ```bash
 lockbox set server.port 8080 --env production
-lockbox set db.host localhost                    # writes to default.json
+lockbox set db.host localhost                                       # writes to default.json
+lockbox set db.host us-west-2.db.com --env production --sub-env us-west-2
 ```
 
 ### `lockbox set-secret`
@@ -230,6 +324,7 @@ Set a secret value. Requires `--env`. Auto-runs `generate` (which encrypts and r
 
 ```bash
 lockbox set-secret db.password s3cret --env production
+lockbox set-secret db.password regional-s3cret --env production --sub-env us-west-2
 ```
 
 ### `lockbox keygen`
@@ -254,6 +349,8 @@ View the full decrypted config for an environment. Requires `--env`. Reads the p
 
 ```bash
 lockbox view --env production
+lockbox view --env production --sub-env us-west-2
+lockbox view --env production --override local.json
 ```
 
 ## Configuration
@@ -284,6 +381,7 @@ Created by `lockbox init` in your project root:
 | `environment` | (required) | The active environment. Must be a key in `configs` |
 | `privateKey` | — | Base64 private key, or `() => string \| Promise<string>` resolver (e.g. from KMS). Required if config contains encrypted values |
 | `schema` | (required) | A [Standard Schema](https://github.com/standard-schema/standard-schema)-compliant schema to validate (and optionally transform) the config after loading |
+| `overrides` | — | Partial config object deep-merged on top after decryption, before validation |
 
 ## API
 

@@ -18,11 +18,12 @@ Commands:
   set-secret      Set a secret config value (secret.json, encrypted on generate)
 
 Options:
-  --dir <path>     Config directory (overrides lockbox.json)
-  --envs <list>    Comma-separated environments (init only)
-  --env <name>     Target environment (required for view, set-secret)
-  --help           Show this help message
-  --version        Show version
+  --dir <path>       Config directory (overrides lockbox.json)
+  --env <name>       Target environment (repeatable for init)
+  --sub-env <name>   Target sub-environment (repeatable for init)
+  --override <file>  Override JSON file merged on top (view only, repeatable)
+  --help             Show this help message
+  --version          Show version
 `;
 
 async function main(): Promise<void> {
@@ -30,8 +31,9 @@ async function main(): Promise<void> {
     allowPositionals: true,
     options: {
       dir: { type: 'string' },
-      envs: { type: 'string' },
-      env: { type: 'string' },
+      env: { type: 'string', multiple: true },
+      'sub-env': { type: 'string', multiple: true },
+      override: { type: 'string', multiple: true },
       help: { type: 'boolean', short: 'h' },
       version: { type: 'boolean', short: 'v' },
     },
@@ -44,7 +46,6 @@ async function main(): Promise<void> {
   }
 
   if (values.version) {
-    // Read version from package.json at runtime
     const { readFileSync } = await import('node:fs');
     const { dirname, resolve } = await import('node:path');
     const { fileURLToPath } = await import('node:url');
@@ -57,14 +58,13 @@ async function main(): Promise<void> {
   }
 
   const command = positionals[0];
+  const envs = values.env as string[] | undefined;
+  const subEnvs = values['sub-env'] as string[] | undefined;
 
   switch (command) {
     case 'init': {
       const { runInit } = await import('./init.js');
-      const envs = values.envs
-        ? (values.envs as string).split(',').map((e) => e.trim())
-        : [];
-      runInit(values.dir as string ?? './config', envs);
+      runInit(values.dir as string ?? './config', envs ?? [], subEnvs ?? []);
       break;
     }
     case 'generate': {
@@ -95,20 +95,26 @@ async function main(): Promise<void> {
     }
     case 'view': {
       const { runView } = await import('./view.js');
-      runView(values.dir as string | undefined, values.env as string | undefined);
+      runView(
+        values.dir as string | undefined,
+        requireSingle(envs, '--env', 'view'),
+        singleOrUndefined(subEnvs, '--sub-env', 'view'),
+        values.override as string[] | undefined
+      );
       break;
     }
     case 'set': {
       const key = positionals[1];
       const val = positionals[2];
       if (!key || val === undefined) {
-        console.error('Usage: lockbox set <key> <value> [--env <name>]');
+        console.error('Usage: lockbox set <key> <value> [--env <name>] [--sub-env <name>]');
         process.exit(1);
       }
       const { runSet } = await import('./set.js');
       runSet(key, val, {
         dir: values.dir as string | undefined,
-        env: values.env as string | undefined,
+        env: singleOrUndefined(envs, '--env', 'set'),
+        subEnv: singleOrUndefined(subEnvs, '--sub-env', 'set'),
       });
       break;
     }
@@ -116,17 +122,19 @@ async function main(): Promise<void> {
       const secretKey = positionals[1];
       const secretVal = positionals[2];
       if (!secretKey || secretVal === undefined) {
-        console.error('Usage: lockbox set-secret <key> <value> --env <name>');
+        console.error('Usage: lockbox set-secret <key> <value> --env <name> [--sub-env <name>]');
         process.exit(1);
       }
-      if (!values.env) {
+      const env = requireSingle(envs, '--env', 'set-secret');
+      if (!env) {
         console.error('set-secret requires --env. Secrets are always environment-specific.');
         process.exit(1);
       }
       const { runSetSecret } = await import('./set.js');
       runSetSecret(secretKey, secretVal, {
         dir: values.dir as string | undefined,
-        env: values.env as string,
+        env,
+        subEnv: singleOrUndefined(subEnvs, '--sub-env', 'set-secret'),
       });
       break;
     }
@@ -135,6 +143,27 @@ async function main(): Promise<void> {
       console.log(USAGE);
       process.exit(1);
   }
+}
+
+function singleOrUndefined(
+  values: string[] | undefined,
+  flag: string,
+  command: string
+): string | undefined {
+  if (!values || values.length === 0) return undefined;
+  if (values.length > 1) {
+    console.error(`${command} expects a single ${flag}, got ${values.length}.`);
+    process.exit(1);
+  }
+  return values[0];
+}
+
+function requireSingle(
+  values: string[] | undefined,
+  flag: string,
+  command: string
+): string | undefined {
+  return singleOrUndefined(values, flag, command);
 }
 
 main().catch((err) => {

@@ -1,7 +1,12 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { loadPublicKey } from '../crypto.js';
+import { isEncrypted, loadPublicKey } from '../crypto.js';
 import { deepMerge } from '../deep_merge.js';
+import {
+  buildInheritanceMap,
+  extractExtends,
+  resolveInheritanceChain,
+} from './inheritance.js';
 
 export function loadJson(path: string): Record<string, unknown> {
   if (!existsSync(path)) {
@@ -64,11 +69,9 @@ export function loadEnvConfig(
 }
 
 export function mergeConfigs(
-  defaults: Record<string, unknown>,
-  envClear: Record<string, unknown>,
-  envSecret: Record<string, unknown>
+  ...sources: Record<string, unknown>[]
 ): Record<string, unknown> {
-  return deepMerge(defaults, envClear, envSecret);
+  return deepMerge(...sources);
 }
 
 /**
@@ -105,4 +108,119 @@ export function loadPublicKeyFromFile(configDir: string): Buffer {
   }
 
   return loadPublicKey(readFileSync(pubKeyPath, 'utf-8').trim());
+}
+
+export function discoverSubEnvironments(configDir: string, env: string): string[] {
+  const envDir = resolve(configDir, env);
+  if (!existsSync(envDir)) {
+    return [];
+  }
+
+  const entries = readdirSync(envDir);
+  const subEnvs: string[] = [];
+
+  for (const entry of entries) {
+    const entryPath = resolve(envDir, entry);
+    if (!statSync(entryPath).isDirectory()) continue;
+
+    const hasClear = existsSync(resolve(entryPath, 'clear.json'));
+    const hasSecret = existsSync(resolve(entryPath, 'secret.json'));
+
+    if (hasClear || hasSecret) {
+      subEnvs.push(entry);
+    }
+  }
+
+  return subEnvs.sort();
+}
+
+export function loadSubEnvConfig(
+  configDir: string,
+  env: string,
+  subEnv: string
+): {
+  clear: Record<string, unknown>;
+  secret: Record<string, unknown>;
+  secretPath: string;
+  generatedPath: string;
+} {
+  const subEnvDir = resolve(configDir, env, subEnv);
+  const secretPath = resolve(subEnvDir, 'secret.json');
+  return {
+    clear: loadJson(resolve(subEnvDir, 'clear.json')),
+    secret: loadJson(secretPath),
+    secretPath,
+    generatedPath: resolve(subEnvDir, 'generated.ts'),
+  };
+}
+
+export function resolveFullMerge(
+  configDir: string,
+  env: string,
+  defaults: Record<string, unknown>,
+  environments: string[],
+  subEnv?: string
+): Record<string, unknown> {
+  const inheritanceMap = buildInheritanceMap(configDir, environments);
+  const chain = resolveInheritanceChain(env, inheritanceMap, environments);
+
+  const layers: Record<string, unknown>[] = [defaults];
+
+  for (const ancestor of chain) {
+    const ancestorConfig = loadEnvConfig(configDir, ancestor);
+    const { config: ancestorClear } = extractExtends(ancestorConfig.clear);
+    layers.push(ancestorClear, ancestorConfig.secret);
+  }
+
+  const envConfig = loadEnvConfig(configDir, env);
+  const { config: envClear } = extractExtends(envConfig.clear);
+  layers.push(envClear, envConfig.secret);
+
+  if (subEnv) {
+    const subEnvConfig = loadSubEnvConfig(configDir, env, subEnv);
+    const subEnvClear = subEnvConfig.clear;
+    if ('_extends' in subEnvClear) {
+      throw new Error(
+        `_extends is not supported in sub-environment configs (found in ${env}/${subEnv}/clear.json). ` +
+        `Only top-level environments can use _extends.`
+      );
+    }
+    layers.push(subEnvClear, subEnvConfig.secret);
+  }
+
+  return mergeConfigs(...layers);
+}
+
+export function loadOverrides(
+  baseDir: string,
+  overridePaths: string[]
+): Record<string, unknown>[] {
+  const overrides: Record<string, unknown>[] = [];
+
+  for (const overridePath of overridePaths) {
+    const fullPath = resolve(baseDir, overridePath);
+    if (!existsSync(fullPath)) {
+      throw new Error(`Override file not found: ${fullPath}`);
+    }
+
+    const data = JSON.parse(readFileSync(fullPath, 'utf-8'));
+    if (hasEncryptedValues(data)) {
+      console.error(
+        `WARNING: Override file ${overridePath} contains ENC[...] values. ` +
+        `Overrides are applied at runtime and should not contain encrypted values.`
+      );
+    }
+    overrides.push(data);
+  }
+
+  return overrides;
+}
+
+function hasEncryptedValues(obj: unknown): boolean {
+  if (isEncrypted(obj)) return true;
+  if (Array.isArray(obj)) return obj.some(hasEncryptedValues);
+  if (obj !== null && typeof obj === 'object') {
+    return Object.values(obj).some(hasEncryptedValues);
+  }
+  return false;
 }
