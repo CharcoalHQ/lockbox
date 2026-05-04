@@ -1,13 +1,13 @@
 import { codeToHtml, type BundledLanguage } from "shiki";
 
-const THEME = "vitesse-dark";
+const THEME = "tokyo-night";
 
-export async function highlight(code: string, lang: BundledLanguage) {
+export async function highlight(code: string, lang: BundledLanguage | "text") {
   return codeToHtml(code.trim(), {
-    lang,
+    lang: lang as BundledLanguage,
     theme: THEME,
     colorReplacements: {
-      "#121212": "var(--color-bg-code)",
+      "#1a1b26": "var(--color-bg-code)",
     },
   });
 }

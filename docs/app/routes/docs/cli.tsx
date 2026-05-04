@@ -15,26 +15,26 @@ Options:
   --dir <path>       Config directory (default: ./config)
   --env <name>       Environment to create (repeatable)
   --sub-env <name>   Sub-environment to create in each env (repeatable)`,
-      "bash"
+      "text"
     ),
     highlight(
       `$ lockbox init --dir ./src/config --env test --env production
 $ lockbox init --env test --env production --sub-env us-west-2 --sub-env eu-central-1`,
-      "bash"
+      "text"
     ),
     highlight(
       `Usage: lockbox generate [options]
 
 Options:
   --dir <path>       Config directory override`,
-      "bash"
+      "text"
     ),
     highlight(
       `Usage: lockbox validate [options]
 
 Options:
   --dir <path>       Config directory override`,
-      "bash"
+      "text"
     ),
     highlight(
       `Usage: lockbox set <key> <value> [options]
@@ -43,13 +43,13 @@ Options:
   --env <name>       Target environment (writes to default.json if omitted)
   --sub-env <name>   Target sub-environment within the environment
   --dir <path>       Config directory override`,
-      "bash"
+      "text"
     ),
     highlight(
       `$ lockbox set db.host localhost
 $ lockbox set db.host prod.db.com --env production
 $ lockbox set db.host us.db.com --env production --sub-env us-west-2`,
-      "bash"
+      "text"
     ),
     highlight(
       `Usage: lockbox set-secret <key> <value> [options]
@@ -58,7 +58,7 @@ Options:
   --env <name>       Target environment (required)
   --sub-env <name>   Target sub-environment
   --dir <path>       Config directory override`,
-      "bash"
+      "text"
     ),
     highlight(
       `Usage: lockbox view [options]
@@ -68,13 +68,13 @@ Options:
   --sub-env <name>   Target sub-environment
   --override <file>  Override JSON file merged on top (repeatable)
   --dir <path>       Config directory override`,
-      "bash"
+      "text"
     ),
     highlight(
       `$ lockbox view --env production
 $ lockbox view --env production --sub-env us-west-2
 $ lockbox view --env production --override local.json`,
-      "bash"
+      "text"
     ),
   ]);
 

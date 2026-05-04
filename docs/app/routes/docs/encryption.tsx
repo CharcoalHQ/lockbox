@@ -43,7 +43,7 @@ $ lockbox set-secret db.password s3cret --env production
 
 # View decrypted config for an environment
 $ lockbox view --env production`,
-        "bash"
+        "text"
       ),
       highlight(
         `  "db": {

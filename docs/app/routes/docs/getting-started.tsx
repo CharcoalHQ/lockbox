@@ -19,7 +19,7 @@ Created config directory: ./src/config
   default.json
   lockbox.pub
   Private key saved to .lockbox/private-key`,
-      "bash"
+      "text"
     ),
     highlight(
       `# Set defaults (shared across all environments)
@@ -32,7 +32,7 @@ $ npx lockbox set db.host prod.db.example.com --env production
 
 # Set secrets (encrypted on generate)
 $ npx lockbox set-secret db.password hunter2 --env production`,
-      "bash"
+      "text"
     ),
     highlight(
       `import { z } from 'zod';
@@ -60,7 +60,7 @@ export const { config, environment } = await createConfig({
       `lockbox: Config validation failed:
   ✖ db.port: Expected number, received string
   ✖ db.password: Required`,
-      "bash"
+      "text"
     ),
     highlight(
       `src/config/
@@ -74,7 +74,7 @@ export const { config, environment } = await createConfig({
     ├── clear.json
     ├── secret.json
     └── generated.ts`,
-      "bash"
+      "text"
     ),
   ]);
 
