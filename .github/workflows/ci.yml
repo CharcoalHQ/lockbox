@@ -31,3 +31,40 @@ jobs:
 
       - name: Test
         run: pnpm test
+
+  docs:
+    name: Docs Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+
+      - name: Check for docs changes
+        id: changes
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            docs:
+              - 'docs/**'
+
+      - name: Setup pnpm
+        if: steps.changes.outputs.docs == 'true'
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        if: steps.changes.outputs.docs == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: pnpm
+          cache-dependency-path: docs/pnpm-lock.yaml
+
+      - name: Install Dependencies
+        if: steps.changes.outputs.docs == 'true'
+        run: pnpm install --frozen-lockfile
+        working-directory: docs
+
+      - name: Build
+        if: steps.changes.outputs.docs == 'true'
+        run: pnpm build
+        working-directory: docs
