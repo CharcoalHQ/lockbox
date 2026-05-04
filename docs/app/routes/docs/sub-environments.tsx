@@ -1,12 +1,136 @@
-import { Link } from "react-router";
+import { Link, useLoaderData } from "react-router";
 import { CodeBlock, InlineCode } from "~/components/code-block";
 import { MergeTimeline } from "~/components/merge-timeline";
+import { highlight } from "~/lib/shiki.server";
 
 export function meta() {
   return [{ title: "Sub-environments - lockbox" }];
 }
 
+export async function loader() {
+  const [
+    tree,
+    initCmd,
+    addLater,
+    prodClear,
+    subEnvClear,
+    usageCode,
+    cliCmds,
+  ] = await Promise.all([
+    highlight(
+      `src/config/
+├── default.json
+├── lockbox.pub
+├── production/
+│   ├── clear.json              # base production config
+│   ├── secret.json
+│   ├── generated.ts            # production (no sub-env)
+│   ├── us-west-2/
+│   │   ├── clear.json          # region-specific overrides
+│   │   ├── secret.json
+│   │   └── generated.ts        # production + us-west-2
+│   └── eu-central-1/
+│       ├── clear.json
+│       ├── secret.json
+│       └── generated.ts        # production + eu-central-1
+└── test/
+    ├── clear.json
+    ├── secret.json
+    └── generated.ts`,
+      "bash"
+    ),
+    highlight(
+      `$ npx lockbox init --dir ./src/config --env test --env production --sub-env us-west-2 --sub-env eu-central-1`,
+      "bash"
+    ),
+    highlight(
+      `$ mkdir -p src/config/production/ap-southeast-1
+$ echo '{}' > src/config/production/ap-southeast-1/clear.json
+$ echo '{}' > src/config/production/ap-southeast-1/secret.json
+
+# Set a value
+$ npx lockbox set db.host ap-southeast-1.db.example.com --env production --sub-env ap-southeast-1`,
+      "bash"
+    ),
+    highlight(
+      `{
+  "db": {
+    "host": "db.example.com",
+    "port": 5432,
+    "pool_size": 20
+  },
+  "cache": {
+    "ttl": 3600
+  }
+}`,
+      "json"
+    ),
+    highlight(
+      `{
+  "db": {
+    "host": "us-west-2.db.example.com"
+  }
+}
+// Result after merge:
+// db.host = "us-west-2.db.example.com"
+// db.port = 5432    (inherited)
+// db.pool_size = 20 (inherited)
+// cache.ttl = 3600  (inherited)`,
+      "jsonc"
+    ),
+    highlight(
+      `import { createConfig } from '@charcoalhq/lockbox';
+import prodUsWest from './config/production/us-west-2/generated.js';
+import prodEuCentral from './config/production/eu-central-1/generated.js';
+import prodBase from './config/production/generated.js';
+
+// Pick the right config based on your region
+const region = process.env.AWS_REGION;
+
+const configs = {
+  'production': prodBase,
+  'production:us-west-2': prodUsWest,
+  'production:eu-central-1': prodEuCentral,
+};
+
+const envKey = region ? \`production:\${region}\` : 'production';
+
+export const { config } = await createConfig({
+  configs,
+  environment: envKey,
+  privateKey: process.env.LOCKBOX_PRIVATE_KEY,
+  schema: configSchema,
+});`,
+      "typescript"
+    ),
+    highlight(
+      `# Set a value in a sub-environment
+$ lockbox set db.host us-west-2.db.com --env production --sub-env us-west-2
+
+# Set a secret in a sub-environment
+$ lockbox set-secret db.password s3cret --env production --sub-env us-west-2
+
+# View the resolved config for a sub-environment
+$ lockbox view --env production --sub-env us-west-2`,
+      "bash"
+    ),
+  ]);
+
+  return {
+    tree,
+    initCmd,
+    addLater,
+    prodClear,
+    subEnvClear,
+    usageCode,
+    cliCmds,
+  };
+}
+
 export default function SubEnvironments() {
+  const { tree, initCmd, addLater, prodClear, subEnvClear, usageCode, cliCmds } =
+    useLoaderData<typeof loader>();
+
   return (
     <div>
       <h1 className="text-3xl font-bold tracking-tight mb-4">
@@ -18,7 +142,6 @@ export default function SubEnvironments() {
         other dimension where config varies within a single environment.
       </p>
 
-      {/* Concept */}
       <h2 className="text-xl font-semibold mb-4 pb-3 border-b border-border">
         How it works
       </h2>
@@ -38,34 +161,14 @@ export default function SubEnvironments() {
         so you import and use it just like any other config.
       </p>
 
-      {/* Directory structure */}
       <h2 className="text-xl font-semibold mb-4 pb-3 border-b border-border">
         Directory structure
       </h2>
-      <pre className="bg-bg-code border border-border rounded-lg p-5 overflow-x-auto font-mono text-[0.8rem] leading-[1.35] whitespace-pre text-fg-muted mb-8">
-{`src/config/
-├── default.json
-├── lockbox.pub
-├── production/
-│   ├── clear.json              `}<span className="text-fg-dim"># base production config</span>{`
-│   ├── secret.json
-│   ├── generated.ts            `}<span className="text-fg-dim"># production (no sub-env)</span>{`
-│   ├── `}<span className="text-accent">us-west-2/</span>{`
-│   │   ├── clear.json          `}<span className="text-fg-dim"># region-specific overrides</span>{`
-│   │   ├── secret.json
-│   │   └── generated.ts        `}<span className="text-fg-dim"># production + us-west-2</span>{`
-│   └── `}<span className="text-accent">eu-central-1/</span>{`
-│       ├── clear.json
-│       ├── secret.json
-│       └── generated.ts        `}<span className="text-fg-dim"># production + eu-central-1</span>{`
-└── test/
-    ├── clear.json
-    ├── secret.json
-    └── generated.ts`}
-      </pre>
+      <div className="[&_pre]:leading-[1.35]">
+        <CodeBlock html={tree} />
+      </div>
 
-      {/* Merge order */}
-      <h2 className="text-xl font-semibold mb-4 pb-3 border-b border-border">
+      <h2 className="text-xl font-semibold mt-10 mb-4 pb-3 border-b border-border">
         Merge order
       </h2>
       <p className="text-fg-muted font-light mb-4 leading-relaxed">
@@ -76,26 +179,27 @@ export default function SubEnvironments() {
           { file: "default.json", desc: "Base defaults" },
           { file: "production/clear.json", desc: "Environment config" },
           { file: "production/secret.json", desc: "Environment secrets" },
-          { file: "production/us-west-2/clear.json", desc: "Sub-env overrides", highlight: true },
-          { file: "production/us-west-2/secret.json", desc: "Sub-env secrets", highlight: true },
+          {
+            file: "production/us-west-2/clear.json",
+            desc: "Sub-env overrides",
+            highlight: true,
+          },
+          {
+            file: "production/us-west-2/secret.json",
+            desc: "Sub-env secrets",
+            highlight: true,
+          },
         ]}
       />
 
-      {/* Example: Setting up */}
       <h2 className="text-xl font-semibold mb-4 pb-3 border-b border-border">
         Setting up sub-environments
       </h2>
       <p className="text-fg-muted font-light mb-4 leading-relaxed">
-        You can scaffold sub-environments during init or add them later by
-        creating the directories manually.
+        You can scaffold sub-environments during init or add them later.
       </p>
       <h3 className="text-base font-semibold mb-3">During init</h3>
-      <CodeBlock>
-        <span className="sh">$</span>{" "}
-        <span className="cmd">
-          npx lockbox init --dir ./src/config --env test --env production --sub-env us-west-2 --sub-env eu-central-1
-        </span>
-      </CodeBlock>
+      <CodeBlock html={initCmd} />
       <p className="text-fg-muted text-sm font-light mt-3 mb-6">
         This creates the sub-environment directories with empty{" "}
         <InlineCode>clear.json</InlineCode> and{" "}
@@ -104,32 +208,13 @@ export default function SubEnvironments() {
 
       <h3 className="text-base font-semibold mb-3">Adding later</h3>
       <p className="text-fg-muted font-light mb-4 leading-relaxed">
-        Create a new subdirectory inside the environment and add{" "}
-        <InlineCode>clear.json</InlineCode> and/or{" "}
-        <InlineCode>secret.json</InlineCode>. Lockbox auto-discovers
-        sub-environments when you run{" "}
-        <InlineCode>generate</InlineCode> or{" "}
+        Create a new subdirectory inside the environment and add config files.
+        Lockbox auto-discovers sub-environments on{" "}
+        <InlineCode>generate</InlineCode> and{" "}
         <InlineCode>validate</InlineCode>.
       </p>
-      <CodeBlock>
-        <span className="sh">$</span>{" "}
-        <span className="cmd">mkdir -p src/config/production/ap-southeast-1</span>
-        {"\n"}
-        <span className="sh">$</span>{" "}
-        <span className="cmd">{"echo '{}' > src/config/production/ap-southeast-1/clear.json"}</span>
-        {"\n"}
-        <span className="sh">$</span>{" "}
-        <span className="cmd">{"echo '{}' > src/config/production/ap-southeast-1/secret.json"}</span>
-        {"\n\n"}
-        <span className="cm"># Set a value</span>
-        {"\n"}
-        <span className="sh">$</span>{" "}
-        <span className="cmd">
-          npx lockbox set db.host ap-southeast-1.db.example.com --env production --sub-env ap-southeast-1
-        </span>
-      </CodeBlock>
+      <CodeBlock html={addLater} />
 
-      {/* Example: Config files */}
       <h2 className="text-xl font-semibold mt-10 mb-4 pb-3 border-b border-border">
         Example config files
       </h2>
@@ -138,94 +223,22 @@ export default function SubEnvironments() {
         overrides just what differs.
       </p>
       <div className="grid md:grid-cols-2 gap-3 mb-4">
-        <CodeBlock filename="production/clear.json">
-          {`{\n`}
-          {"  "}<span className="pr">&quot;db&quot;</span>: {`{\n`}
-          {"    "}<span className="pr">&quot;host&quot;</span>:{" "}
-          <span className="str">&quot;db.example.com&quot;</span>,{"\n"}
-          {"    "}<span className="pr">&quot;port&quot;</span>:{" "}
-          <span className="num">5432</span>,{"\n"}
-          {"    "}<span className="pr">&quot;pool_size&quot;</span>:{" "}
-          <span className="num">20</span>{"\n"}
-          {"  "}
-          {"},\n"}
-          {"  "}<span className="pr">&quot;cache&quot;</span>: {`{\n`}
-          {"    "}<span className="pr">&quot;ttl&quot;</span>:{" "}
-          <span className="num">3600</span>{"\n"}
-          {"  "}
-          {"}\n}"}
-        </CodeBlock>
-        <CodeBlock filename="production/us-west-2/clear.json">
-          {`{\n`}
-          {"  "}<span className="pr">&quot;db&quot;</span>: {`{\n`}
-          {"    "}<span className="pr">&quot;host&quot;</span>:{" "}
-          <span className="str">&quot;us-west-2.db.example.com&quot;</span>
-          {"\n"}
-          {"  "}
-          {"}\n}"}
-          {"\n\n"}
-          <span className="cm">{"// Result after merge:"}</span>{"\n"}
-          <span className="cm">{"// db.host = \"us-west-2.db.example.com\""}</span>{"\n"}
-          <span className="cm">{"// db.port = 5432    (inherited)"}</span>{"\n"}
-          <span className="cm">{"// db.pool_size = 20 (inherited)"}</span>{"\n"}
-          <span className="cm">{"// cache.ttl = 3600  (inherited)"}</span>
-        </CodeBlock>
+        <CodeBlock html={prodClear} filename="production/clear.json" />
+        <CodeBlock
+          html={subEnvClear}
+          filename="production/us-west-2/clear.json"
+        />
       </div>
 
-      {/* Example: Using in code */}
       <h2 className="text-xl font-semibold mt-10 mb-4 pb-3 border-b border-border">
         Using sub-environment configs
       </h2>
       <p className="text-fg-muted font-light mb-4 leading-relaxed">
-        Each sub-environment has its own <InlineCode>generated.ts</InlineCode>{" "}
-        that contains the fully resolved config. Import it like any other
-        config:
+        Each sub-environment has its own <InlineCode>generated.ts</InlineCode>.
+        Import it like any other config:
       </p>
-      <CodeBlock filename="src/config.ts">
-        <span className="kw">import</span> {"{ createConfig }"}{" "}
-        <span className="kw">from</span>{" "}
-        <span className="str">&apos;@charcoalhq/lockbox&apos;</span>;{"\n"}
-        <span className="kw">import</span> prodUsWest{" "}
-        <span className="kw">from</span>{" "}
-        <span className="str">&apos;./config/production/us-west-2/generated.js&apos;</span>;
-        {"\n"}
-        <span className="kw">import</span> prodEuCentral{" "}
-        <span className="kw">from</span>{" "}
-        <span className="str">&apos;./config/production/eu-central-1/generated.js&apos;</span>;
-        {"\n"}
-        <span className="kw">import</span> prodBase{" "}
-        <span className="kw">from</span>{" "}
-        <span className="str">&apos;./config/production/generated.js&apos;</span>;
-        {"\n\n"}
-        <span className="cm">{"// Pick the right config based on your region"}</span>
-        {"\n"}
-        <span className="kw">const</span> region <span className="op">=</span>{" "}
-        process.env.<span className="pr">AWS_REGION</span>;{"\n\n"}
-        <span className="kw">const</span> configs <span className="op">=</span>{" "}
-        {"{"}
-        {"\n"}
-        {"  "}<span className="str">&apos;production&apos;</span>: prodBase,
-        {"\n"}
-        {"  "}<span className="str">&apos;production:us-west-2&apos;</span>: prodUsWest,
-        {"\n"}
-        {"  "}<span className="str">&apos;production:eu-central-1&apos;</span>: prodEuCentral,
-        {"\n"}
-        {"}"};{"\n\n"}
-        <span className="kw">const</span> envKey <span className="op">=</span>{" "}
-        region ? <span className="str">{"`production:${region}`"}</span> :{" "}
-        <span className="str">&apos;production&apos;</span>;{"\n\n"}
-        <span className="kw">export const</span> {"{ config }"}{" "}
-        <span className="op">=</span> <span className="kw">await</span>{" "}
-        <span className="fn">createConfig</span>({"{"}
-        {"\n"}
-        {"  "}configs,{"\n"}
-        {"  "}environment: envKey,{"\n"}
-        {"  "}privateKey: process.env.<span className="pr">LOCKBOX_PRIVATE_KEY</span>,{"\n"}
-        {"  "}schema: configSchema,{"\n"}
-        {"}"});
-      </CodeBlock>
+      <CodeBlock html={usageCode} filename="src/config.ts" />
 
-      {/* CLI */}
       <h2 className="text-xl font-semibold mt-10 mb-4 pb-3 border-b border-border">
         CLI commands
       </h2>
@@ -233,21 +246,8 @@ export default function SubEnvironments() {
         All commands that accept <InlineCode>--env</InlineCode> also accept{" "}
         <InlineCode>--sub-env</InlineCode>:
       </p>
-      <CodeBlock>
-        <span className="cm"># Set a value in a sub-environment</span>{"\n"}
-        <span className="sh">$</span>{" "}
-        <span className="cmd">lockbox set db.host us-west-2.db.com --env production --sub-env us-west-2</span>
-        {"\n\n"}
-        <span className="cm"># Set a secret in a sub-environment</span>{"\n"}
-        <span className="sh">$</span>{" "}
-        <span className="cmd">lockbox set-secret db.password s3cret --env production --sub-env us-west-2</span>
-        {"\n\n"}
-        <span className="cm"># View the resolved config for a sub-environment</span>{"\n"}
-        <span className="sh">$</span>{" "}
-        <span className="cmd">lockbox view --env production --sub-env us-west-2</span>
-      </CodeBlock>
+      <CodeBlock html={cliCmds} />
 
-      {/* Interaction with inheritance */}
       <h2 className="text-xl font-semibold mt-10 mb-4 pb-3 border-b border-border">
         Interaction with inheritance
       </h2>
@@ -263,16 +263,21 @@ export default function SubEnvironments() {
       <MergeTimeline
         layers={[
           { file: "default.json", desc: "Base defaults" },
-          { file: "production/clear + secret", desc: "Inherited via _extends" },
+          {
+            file: "production/clear + secret",
+            desc: "Inherited via _extends",
+          },
           { file: "staging/clear + secret", desc: "Environment overrides" },
-          { file: "staging/us-west-2/clear + secret", desc: "Sub-env overrides", highlight: true },
+          {
+            file: "staging/us-west-2/clear + secret",
+            desc: "Sub-env overrides",
+            highlight: true,
+          },
         ]}
       />
       <p className="text-fg-muted text-sm font-light">
         Note: <InlineCode>_extends</InlineCode> is only supported in top-level
-        environments, not in sub-environments. A sub-environment&apos;s{" "}
-        <InlineCode>clear.json</InlineCode> must not contain{" "}
-        <InlineCode>_extends</InlineCode>.
+        environments, not in sub-environments.
       </p>
     </div>
   );

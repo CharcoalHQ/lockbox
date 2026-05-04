@@ -1,9 +1,9 @@
 export function CodeBlock({
+  html,
   filename,
-  children,
 }: {
+  html: string;
   filename?: string;
-  children: React.ReactNode;
 }) {
   return (
     <div>
@@ -12,13 +12,12 @@ export function CodeBlock({
           {filename}
         </span>
       )}
-      <pre
-        className={`bg-bg-code border border-border rounded-lg p-5 overflow-x-auto font-mono text-[0.8rem] leading-[1.8] ${
-          filename ? "rounded-tl-none" : ""
+      <div
+        className={`[&_pre]:border [&_pre]:border-border [&_pre]:rounded-lg [&_pre]:p-5 [&_pre]:overflow-x-auto [&_pre]:font-mono [&_pre]:text-[0.8rem] [&_pre]:leading-[1.8] ${
+          filename ? "[&_pre]:rounded-tl-none" : ""
         }`}
-      >
-        <code>{children}</code>
-      </pre>
+        dangerouslySetInnerHTML={{ __html: html }}
+      />
     </div>
   );
 }

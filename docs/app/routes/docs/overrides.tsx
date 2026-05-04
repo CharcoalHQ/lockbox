@@ -1,10 +1,74 @@
+import { useLoaderData } from "react-router";
 import { CodeBlock, InlineCode } from "~/components/code-block";
+import { highlight } from "~/lib/shiki.server";
 
 export function meta() {
   return [{ title: "Runtime Overrides - lockbox" }];
 }
 
+export async function loader() {
+  const [envVarPattern, envFile, overrideFile, inlineExample, cliView, cliStack] =
+    await Promise.all([
+      highlight(
+        `import { readFileSync, existsSync } from 'node:fs';
+import { createConfig } from '@charcoalhq/lockbox';
+import prodConfig from './config/production/generated.js';
+
+// Load overrides from a file if LOCKBOX_OVERRIDE is set
+const overridePath = process.env.LOCKBOX_OVERRIDE;
+const overrides = overridePath && existsSync(overridePath)
+  ? JSON.parse(readFileSync(overridePath, 'utf-8'))
+  : {};
+
+export const { config } = await createConfig({
+  configs: { production: prodConfig },
+  environment: 'production',
+  privateKey: process.env.LOCKBOX_PRIVATE_KEY,
+  schema: configSchema,
+  overrides,
+});`,
+        "typescript"
+      ),
+      highlight(`LOCKBOX_OVERRIDE=./config/local-overrides.json`, "bash"),
+      highlight(
+        `{
+  "db": {
+    "host": "localhost",
+    "port": 5433
+  }
+}`,
+        "json"
+      ),
+      highlight(
+        `const { config } = await createConfig({
+  configs: { test: testConfig },
+  environment: 'test',
+  schema: configSchema,
+  overrides: {
+    db: { host: 'test-db.local' },
+  },
+});`,
+        "typescript"
+      ),
+      highlight(
+        `$ lockbox view --env production --override ./config/local-overrides.json
+
+# Shows the full production config with local overrides applied`,
+        "bash"
+      ),
+      highlight(
+        `$ lockbox view --env production --override base.json --override debug.json`,
+        "bash"
+      ),
+    ]);
+
+  return { envVarPattern, envFile, overrideFile, inlineExample, cliView, cliStack };
+}
+
 export default function Overrides() {
+  const { envVarPattern, envFile, overrideFile, inlineExample, cliView, cliStack } =
+    useLoaderData<typeof loader>();
+
   return (
     <div>
       <h1 className="text-3xl font-bold tracking-tight mb-4">
@@ -26,63 +90,21 @@ export default function Overrides() {
       </p>
       <p className="text-fg-muted font-light mb-4 leading-relaxed">
         A common pattern is to load the override from a file pointed to by an
-        environment variable. This way each developer can have their own local
-        override file (gitignored) without touching the committed config:
+        environment variable. Each developer can have their own local override
+        file (gitignored) without touching the committed config:
       </p>
-      <CodeBlock filename="src/config.ts">
-        <span className="kw">import</span> {"{ readFileSync, existsSync }"}{" "}
-        <span className="kw">from</span>{" "}
-        <span className="str">&apos;node:fs&apos;</span>;{"\n"}
-        <span className="kw">import</span> {"{ createConfig }"}{" "}
-        <span className="kw">from</span>{" "}
-        <span className="str">&apos;@charcoalhq/lockbox&apos;</span>;{"\n"}
-        <span className="kw">import</span> prodConfig{" "}
-        <span className="kw">from</span>{" "}
-        <span className="str">&apos;./config/production/generated.js&apos;</span>;{"\n\n"}
-        <span className="cm">{"// Load overrides from a file if LOCKBOX_OVERRIDE is set"}</span>{"\n"}
-        <span className="kw">const</span> overridePath <span className="op">=</span>{" "}
-        process.env.<span className="pr">LOCKBOX_OVERRIDE</span>;{"\n"}
-        <span className="kw">const</span> overrides <span className="op">=</span>{" "}
-        overridePath <span className="op">&&</span> <span className="fn">existsSync</span>(overridePath){"\n"}
-        {"  "}? JSON.<span className="fn">parse</span>(<span className="fn">readFileSync</span>(overridePath, <span className="str">&apos;utf-8&apos;</span>)){"\n"}
-        {"  "}: {"{}"};{"\n\n"}
-        <span className="kw">export const</span> {"{ config }"}{" "}
-        <span className="op">=</span> <span className="kw">await</span>{" "}
-        <span className="fn">createConfig</span>({"{"}
-        {"\n"}
-        {"  "}configs: {"{"} production: prodConfig {"}"},
-        {"\n"}
-        {"  "}environment: <span className="str">&apos;production&apos;</span>,
-        {"\n"}
-        {"  "}privateKey: process.env.<span className="pr">LOCKBOX_PRIVATE_KEY</span>,
-        {"\n"}
-        {"  "}schema: configSchema,{"\n"}
-        {"  "}overrides,{"\n"}
-        {"}"});
-      </CodeBlock>
+      <CodeBlock html={envVarPattern} filename="src/config.ts" />
       <p className="text-fg-muted font-light mt-4 mb-4 leading-relaxed">
         Then each developer creates their own override file and sets the env var:
       </p>
-      <CodeBlock filename=".env.local (gitignored)">
-        <span className="pr">LOCKBOX_OVERRIDE</span><span className="op">=</span><span className="str">./config/local-overrides.json</span>
-      </CodeBlock>
+      <CodeBlock html={envFile} filename=".env.local (gitignored)" />
       <div className="mt-3 mb-8">
-        <CodeBlock filename="config/local-overrides.json (gitignored)">
-          {`{\n`}
-          {"  "}<span className="pr">&quot;db&quot;</span>: {`{\n`}
-          {"    "}<span className="pr">&quot;host&quot;</span>:{" "}
-          <span className="str">&quot;localhost&quot;</span>,{"\n"}
-          {"    "}<span className="pr">&quot;port&quot;</span>:{" "}
-          <span className="num">5433</span>{"\n"}
-          {"  "}
-          {"}\n}"}
-        </CodeBlock>
+        <CodeBlock html={overrideFile} filename="config/local-overrides.json (gitignored)" />
       </div>
       <p className="text-fg-muted font-light mb-8 leading-relaxed">
         The override is deep-merged, so only the keys you specify are
-        replaced — everything else is inherited from the generated config.
-        Without the env var set, no overrides are applied and the production
-        config is used as-is.
+        replaced — everything else is inherited. Without the env var set, no
+        overrides are applied.
       </p>
 
       <h2 className="text-xl font-semibold mb-4 pb-3 border-b border-border">
@@ -91,24 +113,7 @@ export default function Overrides() {
       <p className="text-fg-muted font-light mb-4 leading-relaxed">
         For simple cases like tests, you can pass overrides directly:
       </p>
-      <CodeBlock>
-        <span className="kw">const</span> {"{ config }"}{" "}
-        <span className="op">=</span> <span className="kw">await</span>{" "}
-        <span className="fn">createConfig</span>({"{"}
-        {"\n"}
-        {"  "}configs: {"{"} test: testConfig {"}"},
-        {"\n"}
-        {"  "}environment: <span className="str">&apos;test&apos;</span>,
-        {"\n"}
-        {"  "}schema: configSchema,{"\n"}
-        {"  "}<span className="pr">overrides</span>: {"{"}
-        {"\n"}
-        {"    "}db: {"{"} host: <span className="str">&apos;test-db.local&apos;</span> {"}"},
-        {"\n"}
-        {"  "}
-        {"},\n"}
-        {"}"});
-      </CodeBlock>
+      <CodeBlock html={inlineExample} />
 
       <h2 className="text-xl font-semibold mt-10 mb-4 pb-3 border-b border-border">
         Via the CLI
@@ -116,23 +121,13 @@ export default function Overrides() {
       <p className="text-fg-muted font-light mb-4 leading-relaxed">
         The <InlineCode>lockbox view</InlineCode> command accepts{" "}
         <InlineCode>--override</InlineCode> flags to preview the effective
-        config with overrides applied. This is useful for debugging what a
-        developer would see with their local overrides:
+        config with overrides applied:
       </p>
-      <CodeBlock>
-        <span className="sh">$</span>{" "}
-        <span className="cmd">lockbox view --env production --override ./config/local-overrides.json</span>
-        {"\n\n"}
-        <span className="cm">{"// Shows the full production config with local overrides applied"}</span>
-      </CodeBlock>
-      <p className="text-fg-muted font-light mt-4 mb-8 leading-relaxed">
-        Multiple override files can be stacked. They are applied in order, each
-        deep-merged on top of the previous result:
+      <CodeBlock html={cliView} />
+      <p className="text-fg-muted font-light mt-4 mb-4 leading-relaxed">
+        Multiple override files can be stacked. They are applied in order:
       </p>
-      <CodeBlock>
-        <span className="sh">$</span>{" "}
-        <span className="cmd">lockbox view --env production --override base.json --override debug.json</span>
-      </CodeBlock>
+      <CodeBlock html={cliStack} />
 
       <h2 className="text-xl font-semibold mt-10 mb-4 pb-3 border-b border-border">
         Merge position
@@ -142,14 +137,15 @@ export default function Overrides() {
         inheritance, environment config, sub-environment config, and decryption:
       </p>
       <div className="bg-bg-raised border border-border rounded-lg p-6 mb-8 font-mono text-sm">
-        <span className="text-fg-dim">default {"→"} ancestors {"→"} env {"→"} sub-env {"→"} decryption {"→"}{" "}</span>
+        <span className="text-fg-dim">
+          default {"→"} ancestors {"→"} env {"→"} sub-env {"→"} decryption{"→"}{" "}
+        </span>
         <span className="text-accent font-medium">overrides</span>
         <span className="text-fg-dim"> {"→"} validation</span>
       </div>
       <p className="text-fg-muted font-light leading-relaxed">
-        Since overrides are applied before validation, the final config
-        (including overrides) must still pass your schema. This prevents
-        accidentally introducing invalid config through overrides.
+        Since overrides are applied before validation, the final config must
+        still pass your schema.
       </p>
 
       <h2 className="text-xl font-semibold mt-10 mb-4 pb-3 border-b border-border">
@@ -162,18 +158,17 @@ export default function Overrides() {
           <InlineCode>lockbox validate</InlineCode>
         </li>
         <li>
-          Override files should not contain{" "}
-          <InlineCode>ENC[...]</InlineCode> values — lockbox warns if it detects
-          encrypted values in an override file
+          Override files should not contain <InlineCode>ENC[...]</InlineCode>{" "}
+          values — lockbox warns if it detects encrypted values
         </li>
         <li>
-          Override files should be <strong className="text-fg">gitignored</strong>{" "}
-          — they contain developer-specific values that shouldn&apos;t be committed
+          Override files should be{" "}
+          <strong className="text-fg">gitignored</strong> — they contain
+          developer-specific values
         </li>
         <li>
-          For permanent per-environment changes, edit the{" "}
-          <InlineCode>clear.json</InlineCode> or{" "}
-          <InlineCode>secret.json</InlineCode> files directly
+          For permanent changes, edit <InlineCode>clear.json</InlineCode> or{" "}
+          <InlineCode>secret.json</InlineCode> directly
         </li>
       </ul>
     </div>

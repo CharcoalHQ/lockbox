@@ -1,10 +1,90 @@
+import { useLoaderData } from "react-router";
 import { CodeBlock, InlineCode } from "~/components/code-block";
+import { highlight } from "~/lib/shiki.server";
 
 export function meta() {
   return [{ title: "Getting Started - lockbox" }];
 }
 
+export async function loader() {
+  const [initCmd, setValues, appCode, errorOutput, tree] = await Promise.all([
+    highlight(
+      `$ npx lockbox init --dir ./src/config --env test --env production
+
+Created config directory: ./src/config
+  test/clear.json
+  test/secret.json
+  production/clear.json
+  production/secret.json
+  default.json
+  lockbox.pub
+  Private key saved to .lockbox/private-key`,
+      "bash"
+    ),
+    highlight(
+      `# Set defaults (shared across all environments)
+$ npx lockbox set db.host localhost
+$ npx lockbox set db.port 5432
+$ npx lockbox set db.password '**REQUIRED**'
+
+# Override per environment
+$ npx lockbox set db.host prod.db.example.com --env production
+
+# Set secrets (encrypted on generate)
+$ npx lockbox set-secret db.password hunter2 --env production`,
+      "bash"
+    ),
+    highlight(
+      `import { z } from 'zod';
+import { createConfig } from '@charcoalhq/lockbox';
+import testConfig from './config/test/generated.js';
+import prodConfig from './config/production/generated.js';
+
+const configSchema = z.object({
+  db: z.object({
+    host: z.string(),
+    port: z.number().default(5432),
+    password: z.string(),
+  }),
+});
+
+export const { config, environment } = await createConfig({
+  configs: { test: testConfig, production: prodConfig },
+  environment: process.env.NODE_ENV ?? 'test',
+  privateKey: process.env.LOCKBOX_PRIVATE_KEY,
+  schema: configSchema,
+});`,
+      "typescript"
+    ),
+    highlight(
+      `lockbox: Config validation failed:
+  ✖ db.port: Expected number, received string
+  ✖ db.password: Required`,
+      "bash"
+    ),
+    highlight(
+      `src/config/
+├── lockbox.pub          # public key (committed)
+├── default.json         # base config
+├── test/
+│   ├── clear.json       # env overrides
+│   ├── secret.json      # encrypted secrets
+│   └── generated.ts     # auto-generated
+└── production/
+    ├── clear.json
+    ├── secret.json
+    └── generated.ts`,
+      "bash"
+    ),
+  ]);
+
+  return { initCmd, setValues, appCode, errorOutput, tree };
+}
+
 export default function GettingStarted() {
+  const { initCmd, setValues, appCode, errorOutput, tree } =
+    useLoaderData<typeof loader>();
+
   return (
     <div>
       <h1 className="text-3xl font-bold tracking-tight mb-4">
@@ -27,47 +107,13 @@ export default function GettingStarted() {
             <InlineCode>init</InlineCode> to scaffold the config directory,
             generate a keypair, and install git hooks.
           </p>
-          <CodeBlock>
-            <span className="sh">$</span>{" "}
-            <span className="cmd">pnpm add @charcoalhq/lockbox</span>
-            {"\n\n"}
-            <span className="sh">$</span>{" "}
-            <span className="cmd">
-              npx lockbox init --dir ./src/config --env test --env production
-            </span>
-            {"\n\n"}
-            <span className="cm">Created config directory: ./src/config</span>
-            {"\n"}
-            <span className="cm">{"  "}test/clear.json</span>
-            {"\n"}
-            <span className="cm">{"  "}test/secret.json</span>
-            {"\n"}
-            <span className="cm">{"  "}production/clear.json</span>
-            {"\n"}
-            <span className="cm">{"  "}production/secret.json</span>
-            {"\n"}
-            <span className="cm">{"  "}default.json</span>
-            {"\n"}
-            <span className="cm">{"  "}lockbox.pub</span>
-            {"\n"}
-            <span className="cm">{"  "}Private key saved to .lockbox/private-key</span>
-          </CodeBlock>
+          <CodeBlock html={initCmd} />
           <p className="text-fg-muted text-sm font-light mt-4">
             This creates the following structure:
           </p>
-          <pre className="bg-bg-code border border-border rounded-lg p-5 overflow-x-auto font-mono text-[0.8rem] leading-[1.35] mt-2 whitespace-pre text-fg-muted">
-{`src/config/
-├── lockbox.pub          `}<span className="text-fg-dim"># public key (committed)</span>{`
-├── default.json         `}<span className="text-fg-dim"># base config</span>{`
-├── test/
-│   ├── clear.json       `}<span className="text-fg-dim"># env overrides</span>{`
-│   ├── secret.json      `}<span className="text-fg-dim"># encrypted secrets</span>{`
-│   └── generated.ts     `}<span className="text-fg-dim"># auto-generated</span>{`
-└── production/
-    ├── clear.json
-    ├── secret.json
-    └── generated.ts`}
-          </pre>
+          <div className="mt-2 [&_pre]:leading-[1.35]">
+            <CodeBlock html={tree} />
+          </div>
         </div>
       </div>
 
@@ -83,36 +129,12 @@ export default function GettingStarted() {
             TypeScript files automatically. You can also edit the JSON files
             directly.
           </p>
-          <CodeBlock>
-            <span className="cm"># Set defaults (shared across all environments)</span>
-            {"\n"}
-            <span className="sh">$</span>{" "}
-            <span className="cmd">npx lockbox set db.host localhost</span>
-            {"\n"}
-            <span className="sh">$</span>{" "}
-            <span className="cmd">npx lockbox set db.port 5432</span>
-            {"\n"}
-            <span className="sh">$</span>{" "}
-            <span className="cmd">npx lockbox set db.password '**REQUIRED**'</span>
-            {"\n\n"}
-            <span className="cm"># Override per environment</span>
-            {"\n"}
-            <span className="sh">$</span>{" "}
-            <span className="cmd">
-              npx lockbox set db.host prod.db.example.com --env production
-            </span>
-            {"\n\n"}
-            <span className="cm"># Set secrets (encrypted on generate)</span>
-            {"\n"}
-            <span className="sh">$</span>{" "}
-            <span className="cmd">
-              npx lockbox set-secret db.password hunter2 --env production
-            </span>
-          </CodeBlock>
+          <CodeBlock html={setValues} />
           <p className="text-fg-muted text-sm font-light mt-4">
             The <InlineCode>**REQUIRED**</InlineCode> sentinel marks fields that
-            must be set in each environment. <InlineCode>lockbox validate</InlineCode>{" "}
-            fails if any are left unset.
+            must be set in each environment.{" "}
+            <InlineCode>lockbox validate</InlineCode> fails if any are left
+            unset.
           </p>
         </div>
       </div>
@@ -129,69 +151,14 @@ export default function GettingStarted() {
             Schema library, and call <InlineCode>createConfig</InlineCode>.
             Secrets are decrypted at runtime and the config is fully typed.
           </p>
-          <CodeBlock filename="src/config.ts">
-            <span className="kw">import</span> {"{ z }"}{" "}
-            <span className="kw">from</span>{" "}
-            <span className="str">&apos;zod&apos;</span>;{"\n"}
-            <span className="kw">import</span> {"{ createConfig }"}{" "}
-            <span className="kw">from</span>{" "}
-            <span className="str">&apos;@charcoalhq/lockbox&apos;</span>;{"\n"}
-            <span className="kw">import</span> testConfig{" "}
-            <span className="kw">from</span>{" "}
-            <span className="str">&apos;./config/test/generated.js&apos;</span>;
-            {"\n"}
-            <span className="kw">import</span> prodConfig{" "}
-            <span className="kw">from</span>{" "}
-            <span className="str">
-              &apos;./config/production/generated.js&apos;
-            </span>
-            ;{"\n\n"}
-            <span className="kw">const</span>{" "}
-            <span className="fn">configSchema</span>{" "}
-            <span className="op">=</span> z.<span className="fn">object</span>
-            ({"{"}
-            {"\n"}
-            {"  "}db: z.<span className="fn">object</span>({"{"}
-            {"\n"}
-            {"    "}host: z.<span className="fn">string</span>(),{"\n"}
-            {"    "}port: z.<span className="fn">number</span>().
-            <span className="fn">default</span>(
-            <span className="num">5432</span>),{"\n"}
-            {"    "}password: z.<span className="fn">string</span>(),{"\n"}
-            {"  "}
-            {"}"})
-            {"\n"}
-            {"}"});{"\n\n"}
-            <span className="kw">export const</span> {"{ config, environment }"}{" "}
-            <span className="op">=</span> <span className="kw">await</span>{" "}
-            <span className="fn">createConfig</span>({"{"}
-            {"\n"}
-            {"  "}configs: {"{"} test: testConfig, production: prodConfig{" "}
-            {"}"},
-            {"\n"}
-            {"  "}environment: process.env.
-            <span className="pr">NODE_ENV</span> ??{" "}
-            <span className="str">&apos;test&apos;</span>,{"\n"}
-            {"  "}privateKey: process.env.
-            <span className="pr">LOCKBOX_PRIVATE_KEY</span>,{"\n"}
-            {"  "}schema: configSchema,{"\n"}
-            {"}"});
-          </CodeBlock>
+          <CodeBlock html={appCode} filename="src/config.ts" />
           <p className="text-fg-muted text-sm font-light mt-4">
             Validation runs after decryption. On failure you get clear errors
             with exact paths:
           </p>
-          <CodeBlock>
-            <span className="cm">lockbox: Config validation failed:</span>
-            {"\n"}
-            <span className="text-error">
-              {"  "}✖ db.port: Expected number, received string
-            </span>
-            {"\n"}
-            <span className="text-error">
-              {"  "}✖ db.password: Required
-            </span>
-          </CodeBlock>
+          <div className="mt-2">
+            <CodeBlock html={errorOutput} />
+          </div>
         </div>
       </div>
     </div>

@@ -1,7 +1,8 @@
-import { Link } from "react-router";
+import { Link, useLoaderData } from "react-router";
 import { Nav } from "~/components/nav";
 import { CodeBlock } from "~/components/code-block";
 import { Footer } from "~/components/footer";
+import { highlight } from "~/lib/shiki.server";
 
 export function meta() {
   return [
@@ -12,6 +13,36 @@ export function meta() {
         "The last config and secrets manager your TypeScript app needs. Per-environment overrides, encrypted secrets, full type safety.",
     },
   ];
+}
+
+export async function loader() {
+  const quickExample = await highlight(
+    `import { z } from 'zod';
+import { createConfig } from '@charcoalhq/lockbox';
+import prodConfig from './config/production/generated.js';
+
+const schema = z.object({
+  db: z.object({
+    host: z.string(),
+    port: z.number().default(5432),
+    password: z.string(),
+  }),
+});
+
+export const { config } = await createConfig({
+  configs: { production: prodConfig },
+  environment: 'production',
+  privateKey: process.env.LOCKBOX_PRIVATE_KEY,
+  schema,
+});
+
+config.db.host;      // string ✔
+config.db.password;   // decrypted at runtime ✔
+config.db.missing;    // ✗ TypeScript error`,
+    "typescript"
+  );
+
+  return { quickExample };
 }
 
 const features = [
@@ -48,6 +79,8 @@ const features = [
 ];
 
 export default function Home() {
+  const { quickExample } = useLoaderData<typeof loader>();
+
   return (
     <>
       <Nav />
@@ -80,10 +113,7 @@ export default function Home() {
             target="_blank"
             rel="noopener noreferrer"
           >
-            <svg
-              viewBox="0 0 24 24"
-              className="w-4 h-4 fill-current"
-            >
+            <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current">
               <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12Z" />
             </svg>
             GitHub
@@ -198,61 +228,7 @@ export default function Home() {
           Define your schema, import the generated config, and get full type
           safety with decrypted secrets at runtime.
         </p>
-        <CodeBlock filename="src/config.ts">
-          <span className="kw">import</span> {"{ z }"}{" "}
-          <span className="kw">from</span>{" "}
-          <span className="str">&apos;zod&apos;</span>;{"\n"}
-          <span className="kw">import</span> {"{ createConfig }"}{" "}
-          <span className="kw">from</span>{" "}
-          <span className="str">&apos;@charcoalhq/lockbox&apos;</span>;{"\n"}
-          <span className="kw">import</span> prodConfig{" "}
-          <span className="kw">from</span>{" "}
-          <span className="str">
-            &apos;./config/production/generated.js&apos;
-          </span>
-          ;{"\n\n"}
-          <span className="kw">const</span> <span className="fn">schema</span>{" "}
-          <span className="op">=</span> z.<span className="fn">object</span>
-          ({"{"}
-          {"\n"}
-          {"  "}db: z.<span className="fn">object</span>({"{"}
-          {"\n"}
-          {"    "}host: z.<span className="fn">string</span>(),{"\n"}
-          {"    "}port: z.<span className="fn">number</span>().
-          <span className="fn">default</span>(<span className="num">5432</span>
-          ),{"\n"}
-          {"    "}password: z.<span className="fn">string</span>(),{"\n"}
-          {"  "}
-          {"}"})
-          {"\n"}
-          {"}"});{"\n\n"}
-          <span className="kw">export const</span> {"{ config }"}{" "}
-          <span className="op">=</span> <span className="kw">await</span>{" "}
-          <span className="fn">createConfig</span>({"{"}
-          {"\n"}
-          {"  "}configs: {"{"} production: prodConfig {"}"}
-          ,{"\n"}
-          {"  "}environment:{" "}
-          <span className="str">&apos;production&apos;</span>,{"\n"}
-          {"  "}privateKey: process.env.
-          <span className="pr">LOCKBOX_PRIVATE_KEY</span>,{"\n"}
-          {"  "}schema,{"\n"}
-          {"}"});{"\n\n"}
-          config.db.host;{"     "}
-          <span className="cm">
-            {"// "}string {"✔"}
-          </span>
-          {"\n"}
-          config.db.password;{"  "}
-          <span className="cm">
-            {"// "}decrypted at runtime {"✔"}
-          </span>
-          {"\n"}
-          config.db.missing;{"   "}
-          <span className="cm">
-            {"// ✗"} TypeScript error
-          </span>
-        </CodeBlock>
+        <CodeBlock html={quickExample} filename="src/config.ts" />
         <div className="mt-8 text-center">
           <Link
             to="/docs/getting-started"
@@ -306,9 +282,7 @@ export default function Home() {
                   {i + 1}
                 </span>
                 <span
-                  className={
-                    layer.active ? "text-accent" : "text-fg"
-                  }
+                  className={layer.active ? "text-accent" : "text-fg"}
                 >
                   {layer.label}
                 </span>
