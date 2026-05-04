@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { deepMerge } from '../src/deep_merge.js';
 import {
-  buildInheritanceMap,
   extractExtends,
   resolveInheritanceChain,
 } from '../src/cli/inheritance.js';
@@ -19,6 +19,12 @@ describe('extractExtends', () => {
     expect(result.extendsEnv).toBe('production');
     expect(result.config).toEqual({ logging: { level: 'debug' } });
     expect('_extends' in result.config).toBe(false);
+  });
+
+  it('should not modify the original object', () => {
+    const input = { _extends: 'production', key: 'value' };
+    extractExtends(input);
+    expect(input._extends).toBe('production');
   });
 
   it('should throw if _extends is not a string', () => {
@@ -76,33 +82,34 @@ describe('resolveInheritanceChain', () => {
   });
 });
 
-describe('buildInheritanceMap', () => {
-  it('should build map from filesystem', async () => {
-    const { mkdirSync, writeFileSync, rmSync } = await import('node:fs');
-    const { tmpdir } = await import('node:os');
-    const { join } = await import('node:path');
+describe('inheritance merge behavior', () => {
+  it('should merge ancestor layers in correct order', () => {
+    const defaults = { app: 'myapp', db: { host: 'localhost', port: 5432 } };
+    const prodClear = { db: { host: 'prod.db.com' } };
+    const prodSecret = { db: { password: 'prodpass' } };
+    const stagingClear = { _extends: 'production', logging: { level: 'debug' } };
 
-    const dir = join(tmpdir(), `lockbox-test-inheritance-${Date.now()}`);
-    mkdirSync(join(dir, 'production'), { recursive: true });
-    mkdirSync(join(dir, 'staging'), { recursive: true });
-    mkdirSync(join(dir, 'test'), { recursive: true });
+    const { config: strippedStaging } = extractExtends(stagingClear);
 
-    writeFileSync(join(dir, 'production', 'clear.json'), '{}');
-    writeFileSync(
-      join(dir, 'staging', 'clear.json'),
-      JSON.stringify({ _extends: 'production', extra: true })
-    );
-    writeFileSync(join(dir, 'test', 'clear.json'), '{}');
+    const merged = deepMerge(defaults, prodClear, prodSecret, strippedStaging);
 
-    try {
-      const map = buildInheritanceMap(dir, ['production', 'staging', 'test']);
-      expect(map).toEqual({
-        production: null,
-        staging: 'production',
-        test: null,
-      });
-    } finally {
-      rmSync(dir, { recursive: true });
-    }
+    expect(merged).toEqual({
+      app: 'myapp',
+      db: { host: 'prod.db.com', port: 5432, password: 'prodpass' },
+      logging: { level: 'debug' },
+    });
+  });
+
+  it('should let child override parent values', () => {
+    const prodClear = { api: { url: 'https://api.example.com', timeout: 30000 } };
+    const stagingClear = { _extends: 'production', api: { timeout: 5000 } };
+
+    const { config: strippedStaging } = extractExtends(stagingClear);
+
+    const merged = deepMerge(prodClear, strippedStaging);
+
+    expect(merged).toEqual({
+      api: { url: 'https://api.example.com', timeout: 5000 },
+    });
   });
 });
