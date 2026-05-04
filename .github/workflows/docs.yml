@@ -1,14 +1,18 @@
-name: CI
+name: Docs
 
 on:
   pull_request:
+    paths:
+      - 'docs/**'
   push:
     branches:
       - main
+    paths:
+      - 'docs/**'
 
 jobs:
-  test:
-    name: Test
+  build:
+    name: Build
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repo
@@ -22,12 +26,12 @@ jobs:
         with:
           node-version: 20.x
           cache: pnpm
+          cache-dependency-path: docs/pnpm-lock.yaml
 
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile
+        working-directory: docs
 
-      - name: Typecheck
-        run: pnpm typecheck
-
-      - name: Test
-        run: pnpm test
+      - name: Build
+        run: pnpm build
+        working-directory: docs
