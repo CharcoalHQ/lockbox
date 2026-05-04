@@ -54,13 +54,6 @@ export function runView(
   const defaults = loadDefaults(configDir);
   let merged = resolveFullMerge(configDir, envOverride, defaults, environments, subEnvOverride);
 
-  if (overridePaths && overridePaths.length > 0) {
-    const overrides = loadOverrides(process.cwd(), overridePaths);
-    for (const override of overrides) {
-      merged = deepMerge(merged, override);
-    }
-  }
-
   const privateKey = loadPrivateKey();
   if (privateKey) {
     merged = decryptObject(merged, loadKeyPair(privateKey));
@@ -70,6 +63,13 @@ export function runView(
       'Run `lockbox set-private-key <key>` to store your private key.'
     );
     process.exit(1);
+  }
+
+  if (overridePaths && overridePaths.length > 0) {
+    const overrides = loadOverrides(process.cwd(), overridePaths);
+    for (const override of overrides) {
+      merged = deepMerge(merged, override);
+    }
   }
 
   console.log(JSON.stringify(merged, null, 2));

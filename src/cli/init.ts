@@ -8,7 +8,7 @@ const HOOK_MARKER = '# lockbox:validate';
 
 export function runInit(dir: string, envs: string[], subEnvs: string[] = []): void {
   if (envs.length === 0) {
-    console.error('At least one environment is required. Use --envs test,production');
+    console.error('At least one environment is required. Use --env test --env production');
     process.exit(1);
   }
 

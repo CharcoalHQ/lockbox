@@ -97,7 +97,7 @@ async function main(): Promise<void> {
       const { runView } = await import('./view.js');
       runView(
         values.dir as string | undefined,
-        requireSingle(envs, '--env', 'view'),
+        singleOrUndefined(envs, '--env', 'view'),
         singleOrUndefined(subEnvs, '--sub-env', 'view'),
         values.override as string[] | undefined
       );
@@ -126,10 +126,6 @@ async function main(): Promise<void> {
         process.exit(1);
       }
       const env = requireSingle(envs, '--env', 'set-secret');
-      if (!env) {
-        console.error('set-secret requires --env. Secrets are always environment-specific.');
-        process.exit(1);
-      }
       const { runSetSecret } = await import('./set.js');
       runSetSecret(secretKey, secretVal, {
         dir: values.dir as string | undefined,
@@ -162,8 +158,13 @@ function requireSingle(
   values: string[] | undefined,
   flag: string,
   command: string
-): string | undefined {
-  return singleOrUndefined(values, flag, command);
+): string {
+  const result = singleOrUndefined(values, flag, command);
+  if (result === undefined) {
+    console.error(`${command} requires ${flag}.`);
+    process.exit(1);
+  }
+  return result;
 }
 
 main().catch((err) => {
