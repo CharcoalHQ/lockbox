@@ -85,6 +85,7 @@ export default function Home() {
     <>
       <Nav />
 
+      <main>
       {/* Hero */}
       <div className="max-w-6xl mx-auto px-6 pt-24 pb-20 text-center">
         <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-accent-glow border border-accent-dim text-accent text-xs font-medium mb-8">
@@ -265,6 +266,7 @@ export default function Home() {
             return (
               <div
                 key={layer.label}
+                aria-hidden="true"
                 className={`relative flex items-center gap-4 px-5 py-3 rounded-lg border font-mono text-sm ${
                   i > 0 ? "-mt-1" : ""
                 } ${
@@ -357,6 +359,8 @@ export default function Home() {
           ))}
         </div>
       </section>
+
+      </main>
 
       <Footer />
     </>

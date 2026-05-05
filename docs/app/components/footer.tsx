@@ -6,7 +6,7 @@ export function Footer() {
         maintained by{" "}
         <a
           href="https://github.com/CharcoalHQ"
-          className="text-fg-muted hover:text-fg transition-colors"
+          className="text-fg-muted hover:text-fg transition-colors underline decoration-fg-dim"
           target="_blank"
           rel="noopener noreferrer"
         >

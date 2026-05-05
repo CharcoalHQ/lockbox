@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "dev": "react-router dev",
-    "build": "react-router build && cp build/client/__spa-fallback.html build/client/404.html && touch build/client/.nojekyll"
+    "build": "react-router build && cp -r build/client/lockbox/* build/client/ && rm -rf build/client/lockbox && cp build/client/__spa-fallback.html build/client/404.html && touch build/client/.nojekyll",
+    "preview": "vite preview --outDir build/client"
   },
   "dependencies": {
     "@react-router/node": "^7.14.2",
